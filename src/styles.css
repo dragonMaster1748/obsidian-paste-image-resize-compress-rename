@@ -12,7 +12,7 @@
 
 .image-rename-modal .modal {
 	width: 65%;
-	min-width: 600px;
+	max-width: 900px;
 }
 .image-rename-modal .modal-content {
 	padding: 10px 5px;
@@ -39,11 +39,18 @@
 .image-rename-modal .image-container img {
 	display: block;
 	max-height: 300px;
+	max-width: 100%;
+	object-fit: contain;
 	box-shadow: var(--shadow-elevation-medium);
 }
 
+.image-rename-modal .image-preview-info {
+	color: var(--text-muted);
+	margin: .75em 0;
+}
+
 .image-rename-modal .setting-item-control input {
-	min-width: 300px;
+	max-width: 100%;
 }
 
 /*
