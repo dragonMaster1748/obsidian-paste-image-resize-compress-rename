@@ -34,6 +34,10 @@ After installing the plugin, you can just paste an image to any document and the
 
 By typing the new name and clicking "Rename" (or just press enter), the image will be renamed and the internal link will be replaced with the new name.
 
+For JPG, PNG, WebP, and BMP images, turn on **Convert to JPEG** in the dialog to preview the result before saving. Set maximum width and height in pixels (0 means no limit) and adjust JPEG quality from 1 to 100. The preview shows the output dimensions and approximate file size. The image keeps its aspect ratio and will not be enlarged. Transparent pixels become white in JPEG. **Cancel** leaves the imported file untouched; saving replaces the original file's image data and updates its filename and Obsidian links. GIF and SVG files can still be renamed but cannot be converted in this dialog.
+
+To process an image already in the vault, right-click its file in Obsidian and choose **Rename or convert image…**. Keep **Auto rename** disabled if you want the import dialog to appear for each pasted image; auto rename skips the dialog.
+
 If you set "Image name pattern" to `{{fileName}}` (it's the default behavior after 1.2.0),
 "New name" will be generated as the name of the active file.
 ![](images/modal-fileName.png)
