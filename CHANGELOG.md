@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 — 2026-09-24
+
+- Replace PNG text clarity output with a JPEG text-edge mode using MozJPEG 4:4:4 chroma sampling, a higher starting quality, and optimized progressive encoding.
+- Keep Original and JPEG as the only output choices. The existing preserve-text default now selects JPEG text-edge encoding.
+- Bundle the encoder within `main.js` and include its license notices in the installable ZIP.
+
 ## 0.1.2 — 2026-09-24
 
 - Write processed pixels before changing the image path; use a new numbered path when necessary so Obsidian loads the current image instead of cached pixels.

@@ -32,6 +32,8 @@ jobs:
           id=$(node -p 'require("./manifest.json").id')
           mkdir -p "package/$id"
           cp build/main.js build/manifest.json build/styles.css "package/$id/"
+          cp node_modules/@jsquash/jpeg/LICENSE "package/$id/LICENSE-JSQUASH.txt"
+          cp node_modules/@jsquash/jpeg/codec/LICENSE.codec.md "package/$id/LICENSE-JPEG-CODEC.md"
       - name: Upload downloadable ZIP artifact
         uses: actions/upload-artifact@v4
         with:

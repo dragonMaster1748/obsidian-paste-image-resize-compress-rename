@@ -1,7 +1,7 @@
 {
 	"id": "paste-image-resize-compress-rename",
 	"name": "Paste Image Resize Compress Rename",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"minAppVersion": "0.12.0",
 	"description": "Rename pasted images and preview JPEG conversion, resizing, and quality before saving",
 	"author": "Reorx",

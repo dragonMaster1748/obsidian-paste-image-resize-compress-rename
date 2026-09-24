@@ -23,6 +23,7 @@ import {
 } from 'obsidian';
 
 import { ImageBatchRenameModal } from './batch';
+import { encodeTextFriendlyJpeg } from './jpeg';
 import { renderTemplate } from './template';
 import {
   createElementTree,
@@ -509,14 +510,15 @@ class ImageRenameModal extends Modal {
 		let stem = this.stem
 		const ext = this.src.extension
 		const canEncode = ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(ext.toLowerCase())
-		type OutputFormat = 'original' | 'jpeg' | 'png'
+		type OutputFormat = 'original' | 'jpeg'
 		let outputFormat: OutputFormat = canEncode
-			? this.settings.preserveTextByDefault ? 'png' : this.settings.defaultJpegConversion ? 'jpeg' : 'original'
+			? this.settings.preserveTextByDefault || this.settings.defaultJpegConversion ? 'jpeg' : 'original'
 			: 'original'
+		let preserveText = this.settings.preserveTextByDefault
 		let maxWidth = 0
-		let quality = this.settings.defaultJpegQuality
+		let quality = preserveText ? Math.max(95, this.settings.defaultJpegQuality) : this.settings.defaultJpegQuality
 		let processed: ArrayBuffer | undefined
-		const getNewName = (stem: string) => stem + '.' + (outputFormat === 'jpeg' ? 'jpg' : outputFormat === 'png' ? 'png' : ext)
+		const getNewName = (stem: string) => stem + '.' + (outputFormat === 'jpeg' ? 'jpg' : ext)
 		const getNewPath = (stem: string) => {
 			const name = getNewName(stem)
 			return path.join(this.src.parent.path, name) + (outputFormat !== 'original' && name === this.src.name ? ' (number added on save to refresh image)' : '')
@@ -605,16 +607,18 @@ class ImageRenameModal extends Modal {
 					context.fillRect(0, 0, width, height)
 				}
 				context.drawImage(source, 0, 0, width, height)
-				const result = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
-					blob => blob ? resolve(blob) : reject(new Error('Image encoding failed')),
-					outputFormat === 'png' ? 'image/png' : 'image/jpeg', quality / 100))
+				const result = preserveText
+					? new Blob([await encodeTextFriendlyJpeg(context.getImageData(0, 0, width, height), quality)], { type: 'image/jpeg' })
+					: await new Promise<Blob>((resolve, reject) => canvas.toBlob(
+						blob => blob ? resolve(blob) : reject(new Error('JPEG encoding failed')),
+						'image/jpeg', quality / 100))
 				if (version !== this.previewVersion) return
 				processed = await result.arrayBuffer()
 				if (version !== this.previewVersion) return
 				if (this.previewUrl) URL.revokeObjectURL(this.previewUrl)
 				this.previewUrl = URL.createObjectURL(result)
 				previewImage.src = this.previewUrl
-				previewInfo.setText(`${source.naturalWidth} × ${source.naturalHeight} → ${width} × ${height} px · ${(result.size / 1024).toFixed(1)} KB ${outputFormat.toUpperCase()} (original ${(data.byteLength / 1024).toFixed(1)} KB)`)
+				previewInfo.setText(`${source.naturalWidth} × ${source.naturalHeight} → ${width} × ${height} px · ${(result.size / 1024).toFixed(1)} KB JPEG${preserveText ? ' · text clarity (4:4:4)' : ''} (original ${(data.byteLength / 1024).toFixed(1)} KB)`)
 				errorEl.style.display = 'none'
 			} catch (error) {
 				if (version === this.previewVersion) {
@@ -657,25 +661,38 @@ class ImageRenameModal extends Modal {
 		}
 
 		if (canEncode) {
-			new Setting(contentEl).setName('Output format').setDesc('JPEG is smaller for photos; PNG preserves text and sharp edges without lossy compression.').addDropdown(dropdown => dropdown
+			new Setting(contentEl).setName('Output format').setDesc('Keep the original file or convert to JPEG.').addDropdown(dropdown => dropdown
 				.addOption('original', 'Original (rename only)')
-				.addOption('jpeg', 'JPEG (photos)')
-				.addOption('png', 'PNG (text clarity)')
+				.addOption('jpeg', 'JPEG')
 				.setValue(outputFormat)
 				.onChange(value => {
-				outputFormat = value as OutputFormat
-				infoET.children[1].children[1].el.innerText = getNewPath(stem)
-				schedulePreview()
-			}))
+					outputFormat = value as OutputFormat
+					infoET.children[1].children[1].el.innerText = getNewPath(stem)
+					schedulePreview()
+				}))
+			let setQualityValue = (_value: number) => { /* assigned by the quality slider below */ }
+			new Setting(contentEl).setName('Preserve text edges in JPEG').setDesc('Use 4:4:4 color sampling and a starting quality of at least 95. Text can still become unreadable if width is reduced too far; file size may increase.').addToggle(toggle => toggle
+				.setValue(preserveText)
+				.onChange(value => {
+					preserveText = value
+					if (preserveText && quality < 95) {
+						quality = 95
+						setQualityValue(quality)
+					}
+					if (outputFormat === 'jpeg') schedulePreview()
+				}))
 			const parseLimit = (value: string) => /^\d+$/.test(value) ? Math.min(20000, Number(value)) : 0
 			new Setting(contentEl).setName('Maximum width (px)').setDesc('0 keeps the original width. Aspect ratio is preserved; shrinking can make small text unreadable.').addText(text => text.setValue('0').onChange(value => {
 				maxWidth = parseLimit(value)
 				if (outputFormat !== 'original') schedulePreview()
 			}))
-			new Setting(contentEl).setName('JPEG quality').setDesc('Applies to JPEG only. PNG uses lossless compression.').addSlider(slider => slider.setLimits(1, 100, 1).setValue(quality).setDynamicTooltip().onChange(value => {
+			new Setting(contentEl).setName('JPEG quality').setDesc('Higher values preserve more detail but make larger files.').addSlider(slider => {
+				setQualityValue = value => slider.setValue(value)
+				slider.setLimits(1, 100, 1).setValue(quality).setDynamicTooltip().onChange(value => {
 				quality = value
 				if (outputFormat === 'jpeg') schedulePreview()
-			}))
+				})
+			})
 		}
 		void renderPreview()
 
@@ -769,7 +786,7 @@ class SettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Preserve text by default')
-			.setDesc('Preselect lossless PNG for screenshots, diagrams, and text. This takes priority over the JPEG default; choose JPEG in the dialog for photos.')
+			.setDesc('Preselect JPEG with full-resolution 4:4:4 color sampling and at least 95 starting quality for images with text. This also enables JPEG conversion by default. Files can be larger.')
 			.addToggle(toggle => toggle.setValue(this.plugin.settings.preserveTextByDefault).onChange(async value => {
 				this.plugin.settings.preserveTextByDefault = value
 				await this.plugin.saveSettings()
@@ -777,7 +794,7 @@ class SettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Default JPEG quality')
-			.setDesc('Applied when JPEG is selected. PNG preserves text without lossy compression.')
+			.setDesc('Applied when JPEG is selected. Text clarity starts at a minimum of 95, and you can adjust the slider in the preview dialog.')
 			.addSlider(slider => slider.setLimits(1, 100, 1).setValue(this.plugin.settings.defaultJpegQuality).setDynamicTooltip().onChange(async value => {
 				this.plugin.settings.defaultJpegQuality = value
 				await this.plugin.saveSettings()

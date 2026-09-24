@@ -36,6 +36,7 @@ const ctx = await esbuild.context({
 	},
 	entryPoints: ['src/main.ts', 'src/styles.css'],
 	bundle: true,
+	loader: { '.wasm': 'base64' },
 	external: [
 		'obsidian',
 		'electron',
