@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2 — 2026-09-24
+
+- Write processed pixels before changing the image path; use a new numbered path when necessary so Obsidian loads the current image instead of cached pixels.
+- Remove the maximum height field and preserve aspect ratio using the maximum width only.
+- Add a lossless PNG text clarity option for screenshots and other images with text.
+- Add settings for default JPEG conversion, default text clarity, and starting JPEG quality; processing defaults still open the preview dialog.
+
 ## 0.1.1 — 2026-09-24
 
 - Gave this fork a distinct plugin ID and display name so it appears separately from the original Paste image rename plugin.
