@@ -4,6 +4,8 @@
 
 The customized plugin lives on `main`. The `dev` branch is a reference to the original fork. Each push to `main` runs the [Build Obsidian plugin ZIP](https://github.com/dragonMaster1748/obsidian-paste-image-resize-compress-rename/actions/workflows/build-zip.yml) workflow. Open its latest successful run and download the named artifact. Extract the ZIP into your vault's `.obsidian/plugins/` directory. It must contain `paste-image-resize-compress-rename/main.js`, `paste-image-resize-compress-rename/manifest.json`, and `paste-image-resize-compress-rename/styles.css` directly inside the plugin folder. Restart Obsidian, open **Settings → Community plugins → Installed plugins**, and enable **Paste Image Resize Compress Rename**. Locally installed forks do not appear in the online **Browse** catalog unless separately submitted to the Obsidian community directory. The vault is tested manually.
 
+After an update, check **Installed plugin version** in this plugin's settings. If you still see **PNG (text clarity)**, Obsidian is loading an older `main.js`: check the current vault's `.obsidian/plugins/paste-image-resize-compress-rename/` folder, overwrite `main.js`, `manifest.json`, and `styles.css` with the new artifact's files, and restart Obsidian. Avoid extracting a second nested `paste-image-resize-compress-rename` folder. Leave `data.json` in place to retain your settings. This procedure also applies to the Android vault's plugin folder.
+
 This fork has its own plugin ID. If you installed the previous `0.1.0` artifact, remove its mistakenly placed files from `.obsidian/plugins/` before extracting this build; if you created `.obsidian/plugins/obsidian-paste-image-rename/` solely for this fork, you can remove that folder. Keep it if you also use the upstream Paste image rename plugin.
 
 See [CHANGELOG.md](CHANGELOG.md) for changes to this fork.
@@ -47,6 +49,8 @@ For JPG, PNG, WebP, and BMP images, choose **Original** or **JPEG** in the previ
 To process an image already in the vault, right-click its file in Obsidian and choose **Rename or convert image…**. In plugin settings, select JPEG conversion and/or text-edge preservation as defaults. Text-edge preservation also selects JPEG automatically. You can set the starting JPEG quality. The preview dialog appears whenever a processing default is active, even with **Auto rename** enabled. Re-encoding an already blurred image cannot restore lost detail.
 
 The JPEG text mode uses [jSquash's MozJPEG encoder](https://github.com/jamsinclair/jSquash/tree/main/packages/jpeg). MozJPEG documents disabling chroma subsampling with [1×1 sampling](https://github.com/mozilla/mozjpeg/blob/master/usage.txt); that retains color detail at edges. The downloaded plugin includes the encoder's license notices.
+
+The normal JPEG mode follows [ImgCompress's JPEG settings](https://github.com/karimz1/imgcompress/blob/main/backend/image_converter/core/factory/jpeg_converter.py): 4:2:0 sampling, progressive encoding, and optimized coding, with a new-install default quality of 85. Existing saved JPEG quality settings are retained. The text mode changes sampling to 4:4:4 and starts at 95 or higher. ImgCompress uses Pillow and Lanczos resizing; this plugin uses browser canvas resizing and MozJPEG, so output bytes and resized pixels will differ. ImgCompress also has an optional target-file-size search, which this plugin does not offer.
 
 If you set "Image name pattern" to `{{fileName}}` (it's the default behavior after 1.2.0),
 "New name" will be generated as the name of the active file.

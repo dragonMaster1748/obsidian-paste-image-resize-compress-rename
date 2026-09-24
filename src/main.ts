@@ -23,7 +23,7 @@ import {
 } from 'obsidian';
 
 import { ImageBatchRenameModal } from './batch';
-import { encodeTextFriendlyJpeg } from './jpeg';
+import { encodeJpeg } from './jpeg';
 import { renderTemplate } from './template';
 import {
   createElementTree,
@@ -62,7 +62,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
 	disableRenameNotice: false,
 	defaultJpegConversion: false,
 	preserveTextByDefault: false,
-	defaultJpegQuality: 92,
+	defaultJpegQuality: 85,
 }
 
 const PASTED_IMAGE_PREFIX = 'Pasted image '
@@ -607,11 +607,9 @@ class ImageRenameModal extends Modal {
 					context.fillRect(0, 0, width, height)
 				}
 				context.drawImage(source, 0, 0, width, height)
-				const result = preserveText
-					? new Blob([await encodeTextFriendlyJpeg(context.getImageData(0, 0, width, height), quality)], { type: 'image/jpeg' })
-					: await new Promise<Blob>((resolve, reject) => canvas.toBlob(
-						blob => blob ? resolve(blob) : reject(new Error('JPEG encoding failed')),
-						'image/jpeg', quality / 100))
+				const result = new Blob(
+					[await encodeJpeg(context.getImageData(0, 0, width, height), quality, preserveText)],
+					{ type: 'image/jpeg' })
 				if (version !== this.previewVersion) return
 				processed = await result.arrayBuffer()
 				if (version !== this.previewVersion) return
@@ -774,6 +772,7 @@ class SettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+		new Setting(containerEl).setName('Installed plugin version').setDesc(this.plugin.manifest.version)
 		containerEl.createEl('h2', { text: 'Image processing defaults' })
 
 		new Setting(containerEl)
@@ -794,7 +793,7 @@ class SettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Default JPEG quality')
-			.setDesc('Applied when JPEG is selected. Text clarity starts at a minimum of 95, and you can adjust the slider in the preview dialog.')
+			.setDesc('Starts at 85, like ImgCompress. Text clarity starts at a minimum of 95. Existing saved quality settings are kept.')
 			.addSlider(slider => slider.setLimits(1, 100, 1).setValue(this.plugin.settings.defaultJpegQuality).setDynamicTooltip().onChange(async value => {
 				this.plugin.settings.defaultJpegQuality = value
 				await this.plugin.saveSettings()

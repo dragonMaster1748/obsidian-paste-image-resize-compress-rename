@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4 — 2026-09-24
+
+- Align normal JPEG encoding with ImgCompress's 4:2:0, progressive, optimized approach; set the new-install quality default to 85 while retaining existing saved settings.
+- Keep text-edge mode as 4:4:4 JPEG, show the installed version in settings, and document how to replace a stale plugin build showing the removed PNG option.
+- Make Android compatibility a primary repository rule and check the offline bundled encoder and absent PNG option in GitHub Actions.
+
 ## 0.1.3 — 2026-09-24
 
 - Replace PNG text clarity output with a JPEG text-edge mode using MozJPEG 4:4:4 chroma sampling, a higher starting quality, and optimized progressive encoding.

@@ -24,7 +24,18 @@ jobs:
       - name: Build plugin
         run: npm run build
       - name: Verify matching versions
-        run: node -e "const p=require('./package.json'); const m=require('./build/manifest.json'); if(p.version!==m.version || p.name!==m.id) process.exit(1)"
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const pkg = require('./package.json');
+          const manifest = require('./build/manifest.json');
+          const bundle = fs.readFileSync('build/main.js', 'utf8');
+          if (pkg.version !== manifest.version || pkg.name !== manifest.id) throw Error('Plugin metadata mismatch');
+          if (manifest.isDesktopOnly !== false) throw Error('Android compatibility requires isDesktopOnly=false');
+          if (bundle.includes('PNG (text clarity)')) throw Error('Old PNG text clarity interface is still bundled');
+          if (!bundle.includes('AGFzbQ')) throw Error('JPEG encoder WebAssembly must be bundled for offline mobile use');
+          if (/require\(["'](?:electron|(?:node:)?fs)["']\)/.test(bundle)) throw Error('Desktop-only runtime dependency in plugin bundle');
+          NODE
       - name: Prepare installable folder
         id: plugin
         run: |

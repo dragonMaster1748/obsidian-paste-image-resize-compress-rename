@@ -1,5 +1,11 @@
 # Repository instructions
 
+## Android compatibility
+
+- Android compatibility is a core requirement for every plugin change. Keep `manifest.json` at `isDesktopOnly: false` and use Obsidian and browser APIs available on Android.
+- Do not add Node.js, Electron, native binaries, desktop filesystem access, or codecs that require a runtime network request. Bundle the JPEG WebAssembly encoder into `main.js` so the downloaded plugin works offline on Android.
+- Check the TypeScript build and the installable ZIP's required files after code changes. The user tests the plugin manually on Android and desktop; do not emulate a live vault.
+
 ## Branches and delivery
 
 - `main` is the customized plugin and the default branch. Make requested changes here.
