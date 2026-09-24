@@ -641,8 +641,13 @@ class ImageRenameModal extends Modal {
 				errorEl.style.display = 'block'
 				return
 			}
-			if (busy || (outputFormat !== 'original' && !processed)) {
+			if (busy) {
 				errorEl.setText('Wait for the image preview before saving')
+				errorEl.style.display = 'block'
+				return
+			}
+			if (outputFormat !== 'original' && !processed) {
+				errorEl.setText('Preview failed. Change a setting to retry, or choose Original to rename without processing.')
 				errorEl.style.display = 'block'
 				return
 			}

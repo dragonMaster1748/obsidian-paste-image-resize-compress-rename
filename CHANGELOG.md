@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6 — 2026-09-24
+
+- Fix JPEG preview initialization on Android by giving the bundled MozJPEG encoder an offline WASM location rather than resolving a relative module URL.
+- Show a retry or rename-only message when preview generation fails instead of repeatedly saying to wait.
+
 ## 0.1.5 — 2026-09-24
 
 - Show dragonMaster1748 and its GitHub profile as this fork's author in Obsidian; update package metadata to match.
