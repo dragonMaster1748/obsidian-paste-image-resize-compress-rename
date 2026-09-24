@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.7 — 2026-09-24
+
+- Correct the jSquash initialization type so the Android preview fix builds with its offline WASM fallback.
+- Save the last 10 preview errors in settings with a selectable log, copy button, and clear button to help diagnose mobile failures.
+
 ## 0.1.6 — 2026-09-24
 
 - Fix JPEG preview initialization on Android by giving the bundled MozJPEG encoder an offline WASM location rather than resolving a relative module URL.

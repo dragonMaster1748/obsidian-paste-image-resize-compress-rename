@@ -16,6 +16,7 @@ import {
   Modal,
   Notice,
   Plugin,
+  Platform,
   PluginSettingTab,
   Setting,
   TAbstractFile,
@@ -49,6 +50,7 @@ interface PluginSettings {
 	defaultJpegConversion: boolean
 	preserveTextByDefault: boolean
 	defaultJpegQuality: number
+	previewErrors: string[]
 }
 
 const DEFAULT_SETTINGS: PluginSettings = {
@@ -63,6 +65,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
 	defaultJpegConversion: false,
 	preserveTextByDefault: false,
 	defaultJpegQuality: 85,
+	previewErrors: [],
 }
 
 const PASTED_IMAGE_PREFIX = 'Pasted image '
@@ -255,6 +258,7 @@ export default class PasteImageRenamePlugin extends Plugin {
 	openRenameModal(file: TFile, newName: string, sourcePath: string) {
 		const modal = new ImageRenameModal(
 			this.app, file as TFile, newName, this.settings,
+			(entry: string) => { void this.recordPreviewError(entry) },
 			async (confirmedName: string, processed?: ArrayBuffer) => {
 				await this.saveProcessedImage(file, confirmedName, sourcePath, processed)
 			},
@@ -423,6 +427,16 @@ export default class PasteImageRenamePlugin extends Plugin {
 		return new RegExp(pattern).test(file.extension)
 	}
 
+	async recordPreviewError(entry: string) {
+		const diagnostic = `[${new Date().toISOString()}] v${this.manifest.version} | ${Platform.isMobile ? 'mobile' : 'desktop'}\n${entry.slice(0, 1800)}`
+		this.settings.previewErrors = [...(this.settings.previewErrors ?? []), diagnostic].slice(-10)
+		try {
+			await this.saveSettings()
+		} catch (error) {
+			console.error('Could not save image preview error log', error)
+		}
+	}
+
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
@@ -478,17 +492,19 @@ class ImageRenameModal extends Modal {
 	src: TFile
 	stem: string
 	settings: PluginSettings
+	logPreviewError: (entry: string) => void
 	renameFunc: (path: string, processed?: ArrayBuffer) => Promise<void>
 	onCloseExtra: () => void
 	previewUrl?: string
 	previewTimer?: number
 	previewVersion = 0
 
-	constructor(app: App, src: TFile, stem: string, settings: PluginSettings, renameFunc: (path: string, processed?: ArrayBuffer) => Promise<void>, onClose: () => void) {
+	constructor(app: App, src: TFile, stem: string, settings: PluginSettings, logPreviewError: (entry: string) => void, renameFunc: (path: string, processed?: ArrayBuffer) => Promise<void>, onClose: () => void) {
 		super(app);
 		this.src = src
 		this.stem = stem
 		this.settings = settings
+		this.logPreviewError = logPreviewError
 		this.renameFunc = renameFunc
 		this.onCloseExtra = onClose
 	}
@@ -622,6 +638,7 @@ class ImageRenameModal extends Modal {
 				if (version === this.previewVersion) {
 					errorEl.setText(`Preview failed: ${error}`)
 					errorEl.style.display = 'block'
+					this.logPreviewError(`Source format: ${ext.toLowerCase()}; output: ${outputFormat}; max width: ${maxWidth}; quality: ${quality}; text clarity: ${preserveText}\n${error instanceof Error ? error.stack ?? error.message : String(error)}`)
 				}
 			} finally {
 				if (version === this.previewVersion) busy = false
@@ -803,6 +820,27 @@ class SettingTab extends PluginSettingTab {
 				this.plugin.settings.defaultJpegQuality = value
 				await this.plugin.saveSettings()
 			}))
+
+		containerEl.createEl('h2', { text: 'Preview error log' })
+		new Setting(containerEl)
+			.setName('Recent errors')
+			.setDesc('The last 10 image preview errors are saved here. Select the text to copy it, or use Copy log. No image contents or filenames are included.')
+			.addButton(button => button.setButtonText('Copy log').onClick(async () => {
+				try {
+					await navigator.clipboard.writeText((this.plugin.settings.previewErrors ?? []).join('\n\n'))
+					new Notice('Preview error log copied')
+				} catch {
+					new Notice('Select and copy the text below')
+				}
+			}))
+			.addButton(button => button.setButtonText('Clear log').onClick(async () => {
+				this.plugin.settings.previewErrors = []
+				await this.plugin.saveSettings()
+				this.display()
+			}))
+		const errorLog = containerEl.createEl('textarea', { attr: { readonly: '', rows: '8', 'aria-label': 'Recent preview errors' } })
+		errorLog.value = (this.plugin.settings.previewErrors ?? []).join('\n\n') || 'No preview errors recorded.'
+		errorLog.style.width = '100%'
 
 		containerEl.createEl('h2', { text: 'Renaming' })
 
