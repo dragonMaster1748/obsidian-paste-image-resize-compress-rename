@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5 — 2026-09-24
+
+- Show dragonMaster1748 and its GitHub profile as this fork's author in Obsidian; update package metadata to match.
+
 ## 0.1.4 — 2026-09-24
 
 - Align normal JPEG encoding with ImgCompress's 4:2:0, progressive, optimized approach; set the new-install quality default to 85 while retaining existing saved settings.

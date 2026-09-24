@@ -1,6 +1,6 @@
 {
 	"name": "paste-image-resize-compress-rename",
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"main": "main.js",
 	"scripts": {
 		"start": "node esbuild.config.mjs",
@@ -9,7 +9,7 @@
 		"release": "npm run build && gh release create ${npm_package_version} build/*"
 	},
 	"keywords": [],
-	"author": "Reorx",
+	"author": "dragonMaster1748",
 	"license": "MIT",
 	"devDependencies": {
 		"@types/node": "^24.10.4",
