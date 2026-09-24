@@ -1,5 +1,11 @@
 # Obsidian paste image rename
 
+## Custom fork builds
+
+The customized plugin lives on `main` at version `0.1.0`. The `dev` branch is a reference to the original fork. Each push to `main` runs the [Build Obsidian plugin ZIP](https://github.com/dragonMaster1748/obsidian-paste-image-resize-compress-rename/actions/workflows/build-zip.yml) workflow. Open its latest successful run and download the named artifact. Unzip it and place `main.js`, `manifest.json`, and `styles.css` together in your vault's `.obsidian/plugins/obsidian-paste-image-rename/` directory, then reload Obsidian and enable the plugin. The artifact is produced by GitHub Actions; the vault is tested manually.
+
+See [CHANGELOG.md](CHANGELOG.md) for changes to this fork.
+
 > :loudspeaker: Starting from 1.4.0, Paste image rename becomes a general-purpose renaming plugin
 > that can handle all attachments added to the vault.
 

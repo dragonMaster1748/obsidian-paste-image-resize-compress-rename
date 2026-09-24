@@ -1,0 +1,39 @@
+name: Build Obsidian plugin ZIP
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build plugin
+        run: npm run build
+      - name: Verify matching versions
+        run: node -e "const p=require('./package.json'); const m=require('./build/manifest.json'); if(p.version!==m.version) process.exit(1)"
+      - name: Read plugin version
+        id: version
+        run: echo "version=$(node -p 'require("./manifest.json").version')" >> "$GITHUB_OUTPUT"
+      - name: Upload downloadable ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: obsidian-paste-image-resize-compress-rename-${{ steps.version.outputs.version }}-${{ github.run_number }}
+          path: |
+            build/main.js
+            build/manifest.json
+            build/styles.css
+          if-no-files-found: error
