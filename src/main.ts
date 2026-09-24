@@ -99,6 +99,13 @@ export default class PasteImageRenamePlugin extends Plugin {
 				}
 			})
 		)
+		this.registerEvent(this.app.workspace.on('file-menu', (menu, file) => {
+			if (file instanceof TFile && ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(file.extension.toLowerCase())) {
+				menu.addItem(item => item.setTitle('Rename or convert image…').setIcon('image').onClick(() => {
+					this.openRenameModal(file, file.basename, this.getActiveFile()?.path ?? file.path)
+				}))
+			}
+		}))
 
 		const startBatchRenameProcess = () => {
 			this.openBatchRenameModal()
@@ -147,7 +154,46 @@ export default class PasteImageRenamePlugin extends Plugin {
 		this.renameFile(file, newName, activeFile.path, true)
 	}
 
+	async saveProcessedImage(file: TFile, newName: string, sourcePath: string, jpeg?: ArrayBuffer) {
+		if (!jpeg) {
+			await this.renameFile(file, newName, sourcePath, true)
+			return
+		}
+		const original = await this.app.vault.readBinary(file)
+		const oldPath = file.path
+		const oldLink = this.app.fileManager.generateMarkdownLink(file, sourcePath)
+		const { name } = newName === file.name
+			? { name: newName }
+			: await this.deduplicateNewName(newName, file)
+		const target = path.join(file.parent.path, name)
+		let renamed = false
+		try {
+			if (target !== oldPath) {
+				await this.app.fileManager.renameFile(file, target)
+				renamed = true
+			}
+			await this.app.vault.modifyBinary(file, jpeg)
+		} catch (error) {
+			try {
+				await this.app.vault.modifyBinary(file, original)
+				if (renamed) await this.app.fileManager.renameFile(file, oldPath)
+			} catch (rollbackError) {
+				new Notice(`Image save failed; could not restore the original: ${rollbackError}`)
+			}
+			throw error
+		}
+		const newLink = this.app.fileManager.generateMarkdownLink(file, sourcePath)
+		const editor = this.getActiveEditor()
+		if (editor && this.getActiveFile()?.path === sourcePath) {
+			const cursor = editor.getCursor()
+			const line = editor.getLine(cursor.line)
+			if (line.includes(oldLink)) editor.setLine(cursor.line, line.replace(oldLink, newLink))
+		}
+		if (!this.settings.disableRenameNotice) new Notice(`Saved ${name}`)
+	}
+
 	async renameFile(file: TFile, inputNewName: string, sourcePath: string, replaceCurrentLine?: boolean) {
+		if (inputNewName === file.name) return
 		// deduplicate name
 		const { name:newName } = await this.deduplicateNewName(inputNewName, file)
 		debugLog('deduplicated newName:', newName)
@@ -204,9 +250,8 @@ export default class PasteImageRenamePlugin extends Plugin {
 	openRenameModal(file: TFile, newName: string, sourcePath: string) {
 		const modal = new ImageRenameModal(
 			this.app, file as TFile, newName,
-			(confirmedName: string) => {
-				debugLog('confirmedName:', confirmedName)
-				this.renameFile(file, confirmedName, sourcePath, true)
+			async (confirmedName: string, jpeg?: ArrayBuffer) => {
+				await this.saveProcessedImage(file, confirmedName, sourcePath, jpeg)
 			},
 			() => {
 				this.modals.splice(this.modals.indexOf(modal), 1)
@@ -427,10 +472,13 @@ function isImage(file: TAbstractFile): boolean {
 class ImageRenameModal extends Modal {
 	src: TFile
 	stem: string
-	renameFunc: (path: string) => void
+	renameFunc: (path: string, jpeg?: ArrayBuffer) => Promise<void>
 	onCloseExtra: () => void
+	previewUrl?: string
+	previewTimer?: number
+	previewVersion = 0
 
-	constructor(app: App, src: TFile, stem: string, renameFunc: (path: string) => void, onClose: () => void) {
+	constructor(app: App, src: TFile, stem: string, renameFunc: (path: string, jpeg?: ArrayBuffer) => Promise<void>, onClose: () => void) {
 		super(app);
 		this.src = src
 		this.stem = stem
@@ -446,7 +494,7 @@ class ImageRenameModal extends Modal {
 		const imageContainer = contentEl.createDiv({
 			cls: 'image-container',
 		})
-		imageContainer.createEl('img', {
+		const previewImage = imageContainer.createEl('img', {
 			attr: {
 				src: this.app.vault.getResourcePath(this.src),
 			}
@@ -454,7 +502,13 @@ class ImageRenameModal extends Modal {
 
 		let stem = this.stem
 		const ext = this.src.extension
-		const getNewName = (stem: string) => stem + '.' + ext
+		const canEncode = ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(ext.toLowerCase())
+		let convertToJpeg = false
+		let maxWidth = 0
+		let maxHeight = 0
+		let quality = 85
+		let jpeg: ArrayBuffer | undefined
+		const getNewName = (stem: string) => stem + '.' + (convertToJpeg ? 'jpg' : ext)
 		const getNewPath = (stem: string) => path.join(this.src.parent.path, getNewName(stem))
 
 		const infoET = createElementTree(contentEl, {
@@ -490,10 +544,123 @@ class ImageRenameModal extends Modal {
 			]
 		})
 
-		const doRename = async () => {
-			debugLog('doRename', `stem=${stem}`)
-			this.renameFunc(getNewName(stem))
+		const errorEl = contentEl.createDiv({ cls: 'error' })
+		errorEl.style.display = 'none'
+		const previewInfo = contentEl.createDiv({ cls: 'image-preview-info' })
+		let busy = false
+		let saving = false
+		const renderPreview = async () => {
+			const version = ++this.previewVersion
+			if (!convertToJpeg) {
+				jpeg = undefined
+				if (this.previewUrl) URL.revokeObjectURL(this.previewUrl)
+				this.previewUrl = undefined
+				previewImage.src = this.app.vault.getResourcePath(this.src)
+				previewInfo.setText('Original image; no image data will be changed.')
+				busy = false
+				return
+			}
+			busy = true
+			jpeg = undefined
+			previewInfo.setText('Preparing preview…')
+			try {
+				const data = await this.app.vault.readBinary(this.src)
+				const blob = new Blob([data], { type: `image/${ext === 'jpg' ? 'jpeg' : ext}` })
+				const sourceUrl = URL.createObjectURL(blob)
+				let source: HTMLImageElement
+				try {
+					source = await new Promise((resolve, reject) => {
+						const img = new Image()
+						img.onload = () => resolve(img)
+						img.onerror = () => reject(new Error('Could not decode this image'))
+						img.src = sourceUrl
+					})
+				} finally {
+					URL.revokeObjectURL(sourceUrl)
+				}
+				if (version !== this.previewVersion) return
+				const scale = Math.min(1, maxWidth ? maxWidth / source.naturalWidth : 1, maxHeight ? maxHeight / source.naturalHeight : 1)
+				const width = Math.max(1, Math.round(source.naturalWidth * scale))
+				const height = Math.max(1, Math.round(source.naturalHeight * scale))
+				const canvas = document.createElement('canvas')
+				canvas.width = width
+				canvas.height = height
+				const context = canvas.getContext('2d')
+				if (!context) throw new Error('Canvas is unavailable')
+				context.fillStyle = '#fff'
+				context.fillRect(0, 0, width, height)
+				context.drawImage(source, 0, 0, width, height)
+				const result = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
+					blob => blob ? resolve(blob) : reject(new Error('JPEG encoding failed')), 'image/jpeg', quality / 100))
+				if (version !== this.previewVersion) return
+				jpeg = await result.arrayBuffer()
+				if (version !== this.previewVersion) return
+				if (this.previewUrl) URL.revokeObjectURL(this.previewUrl)
+				this.previewUrl = URL.createObjectURL(result)
+				previewImage.src = this.previewUrl
+				previewInfo.setText(`${source.naturalWidth} × ${source.naturalHeight} → ${width} × ${height} px · about ${(result.size / 1024).toFixed(1)} KB (original ${(data.byteLength / 1024).toFixed(1)} KB)`)
+				errorEl.style.display = 'none'
+			} catch (error) {
+				if (version === this.previewVersion) {
+					errorEl.setText(`Preview failed: ${error}`)
+					errorEl.style.display = 'block'
+				}
+			} finally {
+				if (version === this.previewVersion) busy = false
+			}
 		}
+		const schedulePreview = () => {
+			if (this.previewTimer) window.clearTimeout(this.previewTimer)
+			++this.previewVersion
+			busy = true
+			jpeg = undefined
+			this.previewTimer = window.setTimeout(() => { void renderPreview() }, 250)
+		}
+		const doRename = async () => {
+			if (saving) return
+			if (!stem) {
+				errorEl.setText('New name cannot be empty')
+				errorEl.style.display = 'block'
+				return
+			}
+			if (busy || (convertToJpeg && !jpeg)) {
+				errorEl.setText('Wait for the image preview before saving')
+				errorEl.style.display = 'block'
+				return
+			}
+			saving = true
+			try {
+				await this.renameFunc(getNewName(stem), jpeg)
+				this.close()
+			} catch (error) {
+				errorEl.setText(`Could not save image: ${error}`)
+				errorEl.style.display = 'block'
+			} finally {
+				saving = false
+			}
+		}
+
+		if (canEncode) {
+			new Setting(contentEl).setName('Convert to JPEG').setDesc('JPEG removes transparency. Transparent areas become white.').addToggle(toggle => toggle.onChange(value => {
+				convertToJpeg = value
+				infoET.children[1].children[1].el.innerText = getNewPath(stem)
+				schedulePreview()
+			}))
+			const parseLimit = (value: string) => /^\d+$/.test(value) ? Math.min(20000, Number(value)) : 0
+			new Setting(contentEl).setName('Maximum width (px)').setDesc('0 keeps the original width. Aspect ratio is preserved.').addText(text => text.setValue('0').onChange(value => {
+				maxWidth = parseLimit(value)
+				if (convertToJpeg) schedulePreview()
+			}))
+			new Setting(contentEl).setName('Maximum height (px)').setDesc('0 keeps the original height. Images are never enlarged.').addText(text => text.setValue('0').onChange(value => {
+				maxHeight = parseLimit(value)
+				if (convertToJpeg) schedulePreview()
+			}))
+			new Setting(contentEl).setName('JPEG quality').setDesc('1–100; lower values generally make smaller files.').addSlider(slider => slider.setLimits(1, 100, 1).setValue(85).setDynamicTooltip().onChange(value => {
+				quality = value
+				if (convertToJpeg) schedulePreview()
+			}))
+		}
+		void renderPreview()
 
 		const nameSetting = new Setting(contentEl)
 			.setName('New name')
@@ -518,15 +685,7 @@ class ImageRenameModal extends Modal {
 					errorEl.style.display = 'block'
 					return
 				}
-				doRename()
-				this.close()
-			}
-		})
-
-		const errorEl = contentEl.createDiv({
-			cls: 'error',
-			attr: {
-				style: 'display: none;',
+				void doRename()
 			}
 		})
 
@@ -535,8 +694,7 @@ class ImageRenameModal extends Modal {
 				button
 					.setButtonText('Rename')
 					.onClick(() => {
-						doRename()
-						this.close()
+						void doRename()
 					})
 			})
 			.addButton(button => {
@@ -547,6 +705,9 @@ class ImageRenameModal extends Modal {
 	}
 
 	onClose() {
+		++this.previewVersion
+		if (this.previewTimer) window.clearTimeout(this.previewTimer)
+		if (this.previewUrl) URL.revokeObjectURL(this.previewUrl)
 		const { contentEl } = this;
 		contentEl.empty();
 		this.onCloseExtra()
