@@ -5,7 +5,7 @@ An Obsidian fork of [Paste image rename](https://github.com/reorx/obsidian-paste
 ## What this fork adds
 
 - **JPEG conversion:** Keep the original image or convert supported JPG, PNG, WebP, and BMP images to JPEG. GIF and SVG files remain rename-only.
-- **Maximum width:** Set a width limit in pixels; height follows the original aspect ratio. Set the limit to 0 to retain the original dimensions. Images are never enlarged.
+- **Maximum width:** Set a width limit in pixels; height follows the original aspect ratio. Set the limit to 0 to retain the original dimensions. Images are never enlarged. Large reductions are resized in stages from the decoded original before JPEG compression; the preview warns when a small width may make text hard to read.
 - **Quality control:** Adjust JPEG quality before saving. Standard JPEG encoding uses progressive encoding, optimized coding, and 4:2:0 color sampling, with a default quality of 85 for new installations.
 - **Text clarity mode:** For screenshots, diagrams, and images containing text, use JPEG with 4:4:4 color sampling and a starting quality of at least 95. This may increase file size; shrinking text too far can still make it unreadable.
 - **Preview before saving:** See the processed image, output dimensions, and estimated file size in the rename dialog. Cancel to leave the image unchanged.

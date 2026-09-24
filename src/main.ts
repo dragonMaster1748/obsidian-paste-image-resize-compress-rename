@@ -612,17 +612,39 @@ class ImageRenameModal extends Modal {
 				const scale = Math.min(1, maxWidth ? maxWidth / source.naturalWidth : 1)
 				const width = Math.max(1, Math.round(source.naturalWidth * scale))
 				const height = Math.max(1, Math.round(source.naturalHeight * scale))
+				// Downscale the decoded original in stages before JPEG encoding.
+				// Limit temporary canvases on mobile when the source is very large.
+				let resizeSource: CanvasImageSource = source
+				let stageWidth = source.naturalWidth
+				let stageHeight = source.naturalHeight
+				while (stageWidth > width * 2 || stageHeight > height * 2) {
+					let nextWidth = Math.max(width, Math.ceil(stageWidth / 2))
+					let nextHeight = Math.max(height, Math.ceil(stageHeight / 2))
+					const limit = Math.min(1, Math.sqrt(8_000_000 / (nextWidth * nextHeight)))
+					nextWidth = Math.max(width, Math.floor(nextWidth * limit))
+					nextHeight = Math.max(height, Math.floor(nextHeight * limit))
+					const stage = document.createElement('canvas')
+					stage.width = nextWidth
+					stage.height = nextHeight
+					const stageContext = stage.getContext('2d')
+					if (!stageContext) throw new Error('Canvas is unavailable')
+					stageContext.imageSmoothingEnabled = true
+					stageContext.imageSmoothingQuality = 'high'
+					stageContext.drawImage(resizeSource, 0, 0, nextWidth, nextHeight)
+					resizeSource = stage
+					stageWidth = nextWidth
+					stageHeight = nextHeight
+				}
 				const canvas = document.createElement('canvas')
 				canvas.width = width
 				canvas.height = height
 				const context = canvas.getContext('2d')
 				if (!context) throw new Error('Canvas is unavailable')
+				context.imageSmoothingEnabled = true
 				context.imageSmoothingQuality = 'high'
-				if (outputFormat === 'jpeg') {
-					context.fillStyle = '#fff'
-					context.fillRect(0, 0, width, height)
-				}
-				context.drawImage(source, 0, 0, width, height)
+				context.fillStyle = '#fff'
+				context.fillRect(0, 0, width, height)
+				context.drawImage(resizeSource, 0, 0, width, height)
 				const result = new Blob(
 					[await encodeJpeg(context.getImageData(0, 0, width, height), quality, preserveText)],
 					{ type: 'image/jpeg' })
@@ -632,7 +654,7 @@ class ImageRenameModal extends Modal {
 				if (this.previewUrl) URL.revokeObjectURL(this.previewUrl)
 				this.previewUrl = URL.createObjectURL(result)
 				previewImage.src = this.previewUrl
-				previewInfo.setText(`${source.naturalWidth} × ${source.naturalHeight} → ${width} × ${height} px · ${(result.size / 1024).toFixed(1)} KB JPEG${preserveText ? ' · text clarity (4:4:4)' : ''} (original ${(data.byteLength / 1024).toFixed(1)} KB)`)
+				previewInfo.setText(`${source.naturalWidth} × ${source.naturalHeight} → ${width} × ${height} px · ${(result.size / 1024).toFixed(1)} KB JPEG${preserveText ? ' · text clarity (4:4:4)' : ''} (original ${(data.byteLength / 1024).toFixed(1)} KB)${scale < 0.75 ? ' · Small text may be hard to read at this width; try a larger maximum width.' : ''}`)
 				errorEl.style.display = 'none'
 			} catch (error) {
 				if (version === this.previewVersion) {

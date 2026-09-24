@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.8 — 2026-09-24
+
+- Downscale large images in stages from their decoded original before JPEG encoding to reduce detail loss from a single large canvas resize, with a temporary canvas size limit for Android.
+- Warn in the preview when substantial resizing may make small text hard to read, and document the resizing order.
+
 ## 0.1.7 — 2026-09-24
 
 - Correct the jSquash initialization type so the Android preview fix builds with its offline WASM fallback.

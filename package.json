@@ -1,6 +1,6 @@
 {
 	"name": "paste-image-resize-compress-rename",
-	"version": "0.1.7",
+	"version": "0.1.8",
 	"main": "main.js",
 	"scripts": {
 		"start": "node esbuild.config.mjs",
