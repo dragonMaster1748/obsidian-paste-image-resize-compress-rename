@@ -1,9 +1,9 @@
 {
-	"id": "obsidian-paste-image-rename",
-	"name": "Paste image rename",
-	"version": "0.1.0",
+	"id": "paste-image-resize-compress-rename",
+	"name": "Paste Image Resize Compress Rename",
+	"version": "0.1.1",
 	"minAppVersion": "0.12.0",
-	"description": "Rename pasted images and all the other attchments added to the vault",
+	"description": "Rename pasted images and preview JPEG conversion, resizing, and quality before saving",
 	"author": "Reorx",
 	"authorUrl": "https://github.com/reorx",
 	"isDesktopOnly": false

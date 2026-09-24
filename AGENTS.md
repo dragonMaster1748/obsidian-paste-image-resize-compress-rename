@@ -5,6 +5,7 @@
 - `main` is the customized plugin and the default branch. Make requested changes here.
 - `dev` is a reference to the original fork. Do not commit custom changes to `dev` unless the user explicitly asks.
 - Every push to `main` runs the build in GitHub Actions. GitHub provides the downloadable artifact as a ZIP containing `main.js`, `manifest.json`, and `styles.css` for manual installation in an Obsidian vault. Do not commit generated build files or provide a separate local ZIP as the primary deliverable.
+- The ZIP must contain one top-level folder named exactly like `manifest.json`'s `id`, with `main.js`, `manifest.json`, and `styles.css` directly inside it. Give the fork its own valid ID and display name so it can coexist with the upstream plugin.
 - The user downloads and tests the artifact manually in Obsidian. Do not emulate a live vault or set up extra testing infrastructure. Run the repository build and any focused checks needed for a concrete change.
 
 ## Versions and changelog

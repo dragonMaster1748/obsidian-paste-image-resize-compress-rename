@@ -24,16 +24,17 @@ jobs:
       - name: Build plugin
         run: npm run build
       - name: Verify matching versions
-        run: node -e "const p=require('./package.json'); const m=require('./build/manifest.json'); if(p.version!==m.version) process.exit(1)"
-      - name: Read plugin version
-        id: version
-        run: echo "version=$(node -p 'require("./manifest.json").version')" >> "$GITHUB_OUTPUT"
+        run: node -e "const p=require('./package.json'); const m=require('./build/manifest.json'); if(p.version!==m.version || p.name!==m.id) process.exit(1)"
+      - name: Prepare installable folder
+        id: plugin
+        run: |
+          echo "version=$(node -p 'require("./manifest.json").version')" >> "$GITHUB_OUTPUT"
+          id=$(node -p 'require("./manifest.json").id')
+          mkdir -p "package/$id"
+          cp build/main.js build/manifest.json build/styles.css "package/$id/"
       - name: Upload downloadable ZIP artifact
         uses: actions/upload-artifact@v4
         with:
-          name: obsidian-paste-image-resize-compress-rename-${{ steps.version.outputs.version }}-${{ github.run_number }}
-          path: |
-            build/main.js
-            build/manifest.json
-            build/styles.css
+          name: paste-image-resize-compress-rename-${{ steps.plugin.outputs.version }}-${{ github.run_number }}
+          path: package/
           if-no-files-found: error

@@ -2,7 +2,9 @@
 
 ## Custom fork builds
 
-The customized plugin lives on `main` at version `0.1.0`. The `dev` branch is a reference to the original fork. Each push to `main` runs the [Build Obsidian plugin ZIP](https://github.com/dragonMaster1748/obsidian-paste-image-resize-compress-rename/actions/workflows/build-zip.yml) workflow. Open its latest successful run and download the named artifact. Unzip it and place `main.js`, `manifest.json`, and `styles.css` together in your vault's `.obsidian/plugins/obsidian-paste-image-rename/` directory, then reload Obsidian and enable the plugin. The artifact is produced by GitHub Actions; the vault is tested manually.
+The customized plugin lives on `main`. The `dev` branch is a reference to the original fork. Each push to `main` runs the [Build Obsidian plugin ZIP](https://github.com/dragonMaster1748/obsidian-paste-image-resize-compress-rename/actions/workflows/build-zip.yml) workflow. Open its latest successful run and download the named artifact. Extract the ZIP into your vault's `.obsidian/plugins/` directory. It must contain `paste-image-resize-compress-rename/main.js`, `paste-image-resize-compress-rename/manifest.json`, and `paste-image-resize-compress-rename/styles.css` directly inside the plugin folder. Restart Obsidian, open **Settings → Community plugins → Installed plugins**, and enable **Paste Image Resize Compress Rename**. Locally installed forks do not appear in the online **Browse** catalog unless separately submitted to the Obsidian community directory. The vault is tested manually.
+
+This fork has its own plugin ID. If you installed the previous `0.1.0` artifact, remove its mistakenly placed files from `.obsidian/plugins/` before extracting this build; if you created `.obsidian/plugins/obsidian-paste-image-rename/` solely for this fork, you can remove that folder. Keep it if you also use the upstream Paste image rename plugin.
 
 See [CHANGELOG.md](CHANGELOG.md) for changes to this fork.
 
