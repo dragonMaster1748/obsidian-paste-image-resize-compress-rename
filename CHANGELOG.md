@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.10 — 2026-09-24
+
+- Add a configurable preview size target in plugin settings, accepting values such as 100 KB or 2 MB while keeping 100 KB as the starting value.
+- Hide the target status when left blank or set to zero; keep original and output file size comparison visible.
+
 ## 0.1.9 — 2026-09-24
 
 - Show original and processed sizes side by side in the preview, including size saved or added and the amount under or over a 100 KB goal.

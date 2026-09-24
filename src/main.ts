@@ -50,6 +50,7 @@ interface PluginSettings {
 	defaultJpegConversion: boolean
 	preserveTextByDefault: boolean
 	defaultJpegQuality: number
+	imageSizeTarget: string
 	previewErrors: string[]
 }
 
@@ -65,7 +66,22 @@ const DEFAULT_SETTINGS: PluginSettings = {
 	defaultJpegConversion: false,
 	preserveTextByDefault: false,
 	defaultJpegQuality: 85,
+	imageSizeTarget: '100 KB',
 	previewErrors: [],
+}
+
+// Blank or zero disables the goal; invalid values are rejected in settings.
+function parseImageSizeTarget(value: string): { bytes: number; label: string } | null | undefined {
+	const input = value.trim()
+	if (!input) return null
+	const match = /^(\d+(?:\.\d+)?)\s*(B|KB|MB|GB)?$/i.exec(input)
+	if (!match) return undefined
+	const unit = (match[2] ?? 'KB').toUpperCase()
+	const multiplier = unit === 'GB' ? 1024 ** 3 : unit === 'MB' ? 1024 ** 2 : unit === 'KB' ? 1024 : 1
+	const amount = Number(match[1])
+	const bytes = Math.round(amount * multiplier)
+	if (!Number.isSafeInteger(bytes) || (amount > 0 && bytes === 0)) return undefined
+	return bytes === 0 ? null : { bytes, label: `${match[1]} ${unit}` }
 }
 
 const PASTED_IMAGE_PREFIX = 'Pasted image '
@@ -585,7 +601,9 @@ class ImageRenameModal extends Modal {
 		const outputSizeEl = outputEl.createEl('strong')
 		const sizeResultEl = comparisonEl.createDiv({ cls: 'image-size-result' })
 		const sizeTargetEl = comparisonEl.createDiv({ cls: 'image-size-target' })
-		const formatSize = (bytes: number) => `${(bytes / 1024).toFixed(2)} KB`
+		const formatSize = (bytes: number) => bytes >= 1024 * 1024
+			? `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+			: `${(bytes / 1024).toFixed(2)} KB`
 		const showSizes = (originalBytes: number, outputBytes: number) => {
 			originalSizeEl.setText(formatSize(originalBytes))
 			outputSizeEl.setText(formatSize(outputBytes))
@@ -594,18 +612,23 @@ class ImageRenameModal extends Modal {
 			sizeResultEl.setText(difference > 0
 				? `Saved ${formatSize(difference)} (${percent}% smaller)`
 				: difference < 0 ? `Added ${formatSize(-difference)} (${percent}% larger)` : 'Same file size')
-			const underTarget = outputBytes < 100 * 1024
-			sizeTargetEl.setText(underTarget
-				? `Under 100 KB by ${formatSize(100 * 1024 - outputBytes)}`
-				: outputBytes === 100 * 1024 ? 'Exactly 100 KB · target is under 100 KB'
-					: `Over 100 KB by ${formatSize(outputBytes - 100 * 1024)}`)
-			sizeTargetEl.toggleClass('is-over-target', !underTarget)
+			const target = parseImageSizeTarget(this.settings.imageSizeTarget)
+			sizeTargetEl.style.display = target ? '' : 'none'
+			if (target) {
+				const underTarget = outputBytes < target.bytes
+				sizeTargetEl.setText(underTarget
+					? `Under ${target.label} by ${formatSize(target.bytes - outputBytes)}`
+					: outputBytes === target.bytes ? `Exactly ${target.label} · target is under ${target.label}`
+						: `Over ${target.label} by ${formatSize(outputBytes - target.bytes)}`)
+				sizeTargetEl.toggleClass('is-over-target', !underTarget)
+			}
 		}
 		const showProcessing = () => {
 			originalSizeEl.setText(formatSize(this.src.stat.size))
 			outputSizeEl.setText('Calculating…')
 			sizeResultEl.setText('')
 			sizeTargetEl.setText('')
+			sizeTargetEl.style.display = parseImageSizeTarget(this.settings.imageSizeTarget) ? '' : 'none'
 			sizeTargetEl.removeClass('is-over-target')
 		}
 		showProcessing()
@@ -876,6 +899,22 @@ class SettingTab extends PluginSettingTab {
 			.setDesc('Starts at 85, like ImgCompress. Text clarity starts at a minimum of 95. Existing saved quality settings are kept.')
 			.addSlider(slider => slider.setLimits(1, 100, 1).setValue(this.plugin.settings.defaultJpegQuality).setDynamicTooltip().onChange(async value => {
 				this.plugin.settings.defaultJpegQuality = value
+				await this.plugin.saveSettings()
+			}))
+
+		const targetSetting = new Setting(containerEl)
+			.setName('Image size target')
+			.setDesc('Optional preview goal. Examples: 100 KB or 2 MB. Numbers without a unit mean KB; 1 KB = 1,024 bytes. Leave blank or enter 0 to hide the goal.')
+		targetSetting.addText(text => text
+			.setPlaceholder('100 KB')
+			.setValue(this.plugin.settings.imageSizeTarget)
+			.onChange(async value => {
+				if (parseImageSizeTarget(value) === undefined) {
+					targetSetting.setDesc('Invalid size. Use a number with optional B, KB, MB, or GB (for example, 100 KB or 2 MB). Previous target remains active.')
+					return
+				}
+				targetSetting.setDesc('Optional preview goal. Examples: 100 KB or 2 MB. Numbers without a unit mean KB; 1 KB = 1,024 bytes. Leave blank or enter 0 to hide the goal.')
+				this.plugin.settings.imageSizeTarget = value
 				await this.plugin.saveSettings()
 			}))
 
