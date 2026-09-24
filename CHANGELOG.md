@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.9 — 2026-09-24
+
+- Show original and processed sizes side by side in the preview, including size saved or added and the amount under or over a 100 KB goal.
+- Move the preview error log to the bottom of plugin settings.
+
 ## 0.1.8 — 2026-09-24
 
 - Downscale large images in stages from their decoded original before JPEG encoding to reduce detail loss from a single large canvas resize, with a temporary canvas size limit for Android.

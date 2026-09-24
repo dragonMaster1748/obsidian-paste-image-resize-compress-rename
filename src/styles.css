@@ -49,6 +49,48 @@
 	margin: .75em 0;
 }
 
+.image-rename-modal .image-size-comparison {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: .5em 1em;
+	margin: .75em 0;
+	padding: .75em;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	user-select: text;
+}
+
+.image-rename-modal .image-size-value {
+	display: flex;
+	flex-direction: column;
+	gap: .15em;
+	min-width: 0;
+}
+
+.image-rename-modal .image-size-value span,
+.image-rename-modal .image-size-result {
+	color: var(--text-muted);
+}
+
+.image-rename-modal .image-size-value strong {
+	font-size: 1.3em;
+	overflow-wrap: anywhere;
+}
+
+.image-rename-modal .image-size-result,
+.image-rename-modal .image-size-target {
+	grid-column: 1 / -1;
+}
+
+.image-rename-modal .image-size-target {
+	color: var(--text-success, #278567);
+	font-weight: 600;
+}
+
+.image-rename-modal .image-size-target.is-over-target {
+	color: var(--text-error);
+}
+
 .image-rename-modal .setting-item-control input {
 	max-width: 100%;
 }

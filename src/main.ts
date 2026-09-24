@@ -576,6 +576,39 @@ class ImageRenameModal extends Modal {
 		const errorEl = contentEl.createDiv({ cls: 'error' })
 		errorEl.style.display = 'none'
 		const previewInfo = contentEl.createDiv({ cls: 'image-preview-info' })
+		const comparisonEl = contentEl.createDiv({ cls: 'image-size-comparison' })
+		const originalEl = comparisonEl.createDiv({ cls: 'image-size-value' })
+		originalEl.createSpan({ text: 'Original' })
+		const originalSizeEl = originalEl.createEl('strong')
+		const outputEl = comparisonEl.createDiv({ cls: 'image-size-value' })
+		outputEl.createSpan({ text: 'After' })
+		const outputSizeEl = outputEl.createEl('strong')
+		const sizeResultEl = comparisonEl.createDiv({ cls: 'image-size-result' })
+		const sizeTargetEl = comparisonEl.createDiv({ cls: 'image-size-target' })
+		const formatSize = (bytes: number) => `${(bytes / 1024).toFixed(2)} KB`
+		const showSizes = (originalBytes: number, outputBytes: number) => {
+			originalSizeEl.setText(formatSize(originalBytes))
+			outputSizeEl.setText(formatSize(outputBytes))
+			const difference = originalBytes - outputBytes
+			const percent = originalBytes > 0 ? Math.round(Math.abs(difference) / originalBytes * 100) : 0
+			sizeResultEl.setText(difference > 0
+				? `Saved ${formatSize(difference)} (${percent}% smaller)`
+				: difference < 0 ? `Added ${formatSize(-difference)} (${percent}% larger)` : 'Same file size')
+			const underTarget = outputBytes < 100 * 1024
+			sizeTargetEl.setText(underTarget
+				? `Under 100 KB by ${formatSize(100 * 1024 - outputBytes)}`
+				: outputBytes === 100 * 1024 ? 'Exactly 100 KB · target is under 100 KB'
+					: `Over 100 KB by ${formatSize(outputBytes - 100 * 1024)}`)
+			sizeTargetEl.toggleClass('is-over-target', !underTarget)
+		}
+		const showProcessing = () => {
+			originalSizeEl.setText(formatSize(this.src.stat.size))
+			outputSizeEl.setText('Calculating…')
+			sizeResultEl.setText('')
+			sizeTargetEl.setText('')
+			sizeTargetEl.removeClass('is-over-target')
+		}
+		showProcessing()
 		let busy = false
 		let saving = false
 		const renderPreview = async () => {
@@ -586,12 +619,14 @@ class ImageRenameModal extends Modal {
 				this.previewUrl = undefined
 				previewImage.src = this.app.vault.getResourcePath(this.src)
 				previewInfo.setText('Original image; no image data will be changed.')
+				showSizes(this.src.stat.size, this.src.stat.size)
 				busy = false
 				return
 			}
 			busy = true
 			processed = undefined
 			previewInfo.setText('Preparing preview…')
+			showProcessing()
 			try {
 				const data = await this.app.vault.readBinary(this.src)
 				const sourceExt = ext.toLowerCase()
@@ -654,7 +689,8 @@ class ImageRenameModal extends Modal {
 				if (this.previewUrl) URL.revokeObjectURL(this.previewUrl)
 				this.previewUrl = URL.createObjectURL(result)
 				previewImage.src = this.previewUrl
-				previewInfo.setText(`${source.naturalWidth} × ${source.naturalHeight} → ${width} × ${height} px · ${(result.size / 1024).toFixed(1)} KB JPEG${preserveText ? ' · text clarity (4:4:4)' : ''} (original ${(data.byteLength / 1024).toFixed(1)} KB)${scale < 0.75 ? ' · Small text may be hard to read at this width; try a larger maximum width.' : ''}`)
+				showSizes(data.byteLength, result.size)
+				previewInfo.setText(`${source.naturalWidth} × ${source.naturalHeight} → ${width} × ${height} px JPEG${preserveText ? ' · text clarity (4:4:4)' : ''}${scale < 0.75 ? ' · Small text may be hard to read at this width; try a larger maximum width.' : ''}`)
 				errorEl.style.display = 'none'
 			} catch (error) {
 				if (version === this.previewVersion) {
@@ -843,27 +879,6 @@ class SettingTab extends PluginSettingTab {
 				await this.plugin.saveSettings()
 			}))
 
-		containerEl.createEl('h2', { text: 'Preview error log' })
-		new Setting(containerEl)
-			.setName('Recent errors')
-			.setDesc('The last 10 image preview errors are saved here. Select the text to copy it, or use Copy log. No image contents or filenames are included.')
-			.addButton(button => button.setButtonText('Copy log').onClick(async () => {
-				try {
-					await navigator.clipboard.writeText((this.plugin.settings.previewErrors ?? []).join('\n\n'))
-					new Notice('Preview error log copied')
-				} catch {
-					new Notice('Select and copy the text below')
-				}
-			}))
-			.addButton(button => button.setButtonText('Clear log').onClick(async () => {
-				this.plugin.settings.previewErrors = []
-				await this.plugin.saveSettings()
-				this.display()
-			}))
-		const errorLog = containerEl.createEl('textarea', { attr: { readonly: '', rows: '8', 'aria-label': 'Recent preview errors' } })
-		errorLog.value = (this.plugin.settings.previewErrors ?? []).join('\n\n') || 'No preview errors recorded.'
-		errorLog.style.width = '100%'
-
 		containerEl.createEl('h2', { text: 'Renaming' })
 
 		new Setting(containerEl)
@@ -961,5 +976,27 @@ class SettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}
 			));
+
+		containerEl.createEl('h2', { text: 'Preview error log' })
+		new Setting(containerEl)
+			.setName('Recent errors')
+			.setDesc('The last 10 image preview errors are saved here. Select the text to copy it, or use Copy log. No image contents or filenames are included.')
+			.addButton(button => button.setButtonText('Copy log').onClick(async () => {
+				try {
+					await navigator.clipboard.writeText((this.plugin.settings.previewErrors ?? []).join('\n\n'))
+					new Notice('Preview error log copied')
+				} catch {
+					new Notice('Select and copy the text below')
+				}
+			}))
+			.addButton(button => button.setButtonText('Clear log').onClick(async () => {
+				this.plugin.settings.previewErrors = []
+				await this.plugin.saveSettings()
+				this.display()
+			}))
+		const errorLog = containerEl.createEl('textarea', { attr: { readonly: '', rows: '8', 'aria-label': 'Recent preview errors' } })
+		errorLog.value = (this.plugin.settings.previewErrors ?? []).join('\n\n') || 'No preview errors recorded.'
+		errorLog.style.width = '100%'
+
 	}
 }
