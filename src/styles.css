@@ -17,17 +17,20 @@
 .image-rename-modal .modal-content {
 	padding: 10px 5px;
 }
-.image-rename-modal .image-container {
+.image-rename-modal .image-preview-section {
 	position: sticky;
 	top: 0;
 	z-index: 10;
+	padding: .5em 0 .25em;
+	background: var(--background-primary);
+	box-shadow: 0 6px 8px var(--background-primary);
+}
+
+.image-rename-modal .image-container {
 	display: flex;
 	align-items: flex-start;
 	justify-content: center;
 	gap: 1rem;
-	padding: .5em 0 .75em;
-	background: var(--background-primary);
-	box-shadow: 0 6px 8px var(--background-primary);
 }
 
 .image-rename-modal .info {
@@ -55,7 +58,7 @@
 
 .image-preview-stage > img {
 	display: block;
-	max-height: 300px;
+	max-height: var(--preview-max-height, min(24vh, 300px));
 	max-width: 100%;
 	object-fit: contain;
 	box-shadow: var(--shadow-elevation-medium);
@@ -70,8 +73,8 @@
 }
 
 .image-rename-modal .image-zoom-panel {
-	flex: 0 0 260px;
-	min-width: 220px;
+	flex: 0 0 var(--preview-panel-width, 260px);
+	min-width: 0;
 	max-width: 35%;
 	line-height: normal;
 }
@@ -87,7 +90,7 @@
 .image-rename-modal .image-zoom-window {
 	position: relative;
 	width: 100%;
-	height: 190px;
+	height: var(--preview-zoom-height, 190px);
 	margin: .5em auto .75em;
 	overflow: hidden;
 	border: 1px solid var(--background-modifier-border);
@@ -115,10 +118,34 @@
 	}
 
 	.image-rename-modal .image-zoom-panel {
-		width: min(100%, 380px);
+		width: min(100%, var(--preview-panel-width, 380px));
 		max-width: 100%;
 		flex-basis: auto;
 	}
+}
+
+
+.image-rename-modal .image-preview-resize-handle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 20px;
+	margin-top: .25em;
+	cursor: ns-resize;
+	touch-action: none;
+	user-select: none;
+}
+
+.image-rename-modal .image-preview-resize-grip {
+	width: 56px;
+	height: 4px;
+	border-radius: 4px;
+	background: var(--text-faint);
+}
+
+.image-rename-modal .image-preview-resize-handle:hover .image-preview-resize-grip,
+.image-rename-modal .image-preview-resize-handle:focus-visible .image-preview-resize-grip {
+	background: var(--interactive-accent);
 }
 
 .image-rename-modal .image-preview-info {
