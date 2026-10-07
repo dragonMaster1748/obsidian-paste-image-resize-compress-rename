@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.12 — 2026-10-07
+
+- Place zoom controls and the detail preview beside the full image on wider screens; stack them below the image on narrow screens.
+
 ## 0.1.11 — 2026-10-07
 
 - Add adjustable zoom detail to the image preview. Drag the red focus box over the image and choose a zoom level to inspect lettering before saving.
