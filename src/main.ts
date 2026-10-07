@@ -609,7 +609,14 @@ class ImageRenameModal extends Modal {
 			return path.join(this.src.parent.path, name) + (outputFormat !== 'original' && name === this.src.name ? ' (number added on save to refresh image)' : '')
 		}
 
-		const infoET = createElementTree(contentEl, {
+		const processingDetails = contentEl.createDiv({ cls: 'image-processing-details' })
+		let processingSettingsEl: HTMLDivElement | undefined
+		const updateFormatVisibility = () => {
+			const renameOnly = outputFormat === 'original'
+			processingDetails.style.display = renameOnly ? 'none' : ''
+			if (processingSettingsEl) processingSettingsEl.style.display = renameOnly ? 'none' : ''
+		}
+		const infoET = createElementTree(processingDetails, {
 			tag: 'ul',
 			cls: 'info',
 			children: [
@@ -644,8 +651,8 @@ class ImageRenameModal extends Modal {
 
 		const errorEl = contentEl.createDiv({ cls: 'error' })
 		errorEl.style.display = 'none'
-		const previewInfo = contentEl.createDiv({ cls: 'image-preview-info' })
-		const comparisonEl = contentEl.createDiv({ cls: 'image-size-comparison' })
+		const previewInfo = processingDetails.createDiv({ cls: 'image-preview-info' })
+		const comparisonEl = processingDetails.createDiv({ cls: 'image-size-comparison' })
 		const originalEl = comparisonEl.createDiv({ cls: 'image-size-value' })
 		originalEl.createSpan({ text: 'Original' })
 		const originalSizeEl = originalEl.createEl('strong')
@@ -822,10 +829,13 @@ class ImageRenameModal extends Modal {
 				.onChange(value => {
 					outputFormat = value as OutputFormat
 					infoET.children[1].children[1].el.innerText = getNewPath(stem)
+					updateFormatVisibility()
 					schedulePreview()
 				}))
+			const imageSettingsEl = contentEl.createDiv({ cls: 'image-processing-settings' })
+			processingSettingsEl = imageSettingsEl
 			let setQualityValue = (_value: number) => { /* assigned by the quality slider below */ }
-			new Setting(contentEl).setName('Preserve text edges in JPEG').setDesc('Use 4:4:4 color sampling and a starting quality of at least 95. Text can still become unreadable if width is reduced too far; file size may increase.').addToggle(toggle => toggle
+			new Setting(imageSettingsEl).setName('Preserve text edges in JPEG').setDesc('Use 4:4:4 color sampling and a starting quality of at least 95. Text can still become unreadable if width is reduced too far; file size may increase.').addToggle(toggle => toggle
 				.setValue(preserveText)
 				.onChange(value => {
 					preserveText = value
@@ -836,11 +846,11 @@ class ImageRenameModal extends Modal {
 					if (outputFormat === 'jpeg') schedulePreview()
 				}))
 			const parseLimit = (value: string) => /^\d+$/.test(value) ? Math.min(20000, Number(value)) : 0
-			new Setting(contentEl).setName('Maximum width (px)').setDesc('0 keeps the original width. Aspect ratio is preserved; shrinking can make small text unreadable.').addText(text => text.setValue('0').onChange(value => {
+			new Setting(imageSettingsEl).setName('Maximum width (px)').setDesc('0 keeps the original width. Aspect ratio is preserved; shrinking can make small text unreadable.').addText(text => text.setValue('0').onChange(value => {
 				maxWidth = parseLimit(value)
 				if (outputFormat !== 'original') schedulePreview()
 			}))
-			new Setting(contentEl).setName('JPEG quality').setDesc('Higher values preserve more detail but make larger files.').addSlider(slider => {
+			new Setting(imageSettingsEl).setName('JPEG quality').setDesc('Higher values preserve more detail but make larger files.').addSlider(slider => {
 				setQualityValue = value => slider.setValue(value)
 				slider.setLimits(1, 100, 1).setValue(quality).setDynamicTooltip().onChange(value => {
 				quality = value
@@ -848,6 +858,7 @@ class ImageRenameModal extends Modal {
 				})
 			})
 		}
+		updateFormatVisibility()
 		void renderPreview()
 
 		const nameSetting = new Setting(contentEl)
