@@ -559,7 +559,7 @@ class ImageRenameModal extends Modal {
 			zoomFrame.style.height = frameHeight + 'px'
 			zoomFrame.style.left = left + 'px'
 			zoomFrame.style.top = top + 'px'
-			zoomImage.src = previewImage.src
+			if (zoomImage.src !== previewImage.src) zoomImage.src = previewImage.src
 			zoomImage.style.width = width * zoom + 'px'
 			zoomImage.style.height = height * zoom + 'px'
 			zoomImage.style.left = (zoomWindow.clientWidth / 2 - (left + frameWidth / 2) * zoom) + 'px'
