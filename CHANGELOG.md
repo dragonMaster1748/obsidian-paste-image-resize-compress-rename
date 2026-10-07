@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.17 — 2026-10-07
+
+- Limit shrinking of extreme image proportions, then show a bounded, scrollable preview with position sliders. Keep zoom controls inside the dialog.
+
 ## 0.1.16 — 2026-10-07
 
 - Adapt the preview to screen height and add a touch-friendly resize handle. Save each screen orientation's preview size for later use.
