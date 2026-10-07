@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.14 — 2026-10-07
+
+- Keep the image and zoom preview visible at the top of the dialog while scrolling through processing settings.
+
 ## 0.1.13 — 2026-10-07
 
 - Prevent native image dragging while positioning the red focus box.
