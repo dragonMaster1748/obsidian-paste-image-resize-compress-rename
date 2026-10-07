@@ -518,6 +518,7 @@ class ImageRenameModal extends Modal {
 	previewUrl?: string
 	previewTimer?: number
 	resizeSaveTimer?: number
+	previewObserver?: ResizeObserver
 	previewVersion = 0
 
 	constructor(app: App, src: TFile, stem: string, settings: PluginSettings, saveSettings: () => Promise<void>, logPreviewError: (entry: string) => void, renameFunc: (path: string, processed?: ArrayBuffer) => Promise<void>, onClose: () => void) {
@@ -538,11 +539,17 @@ class ImageRenameModal extends Modal {
 
 		const previewSection = contentEl.createDiv({ cls: 'image-preview-section' })
 		const imageContainer = previewSection.createDiv({ cls: 'image-container' })
-		const previewStage = imageContainer.createDiv({ cls: 'image-preview-stage' })
+		const previewPane = imageContainer.createDiv({ cls: 'image-preview-pane' })
+		const previewViewport = previewPane.createDiv({ cls: 'image-preview-viewport' })
+		const previewStage = previewViewport.createDiv({ cls: 'image-preview-stage' })
 		const previewImage = previewStage.createEl('img', {
 			attr: { src: this.app.vault.getResourcePath(this.src), draggable: 'false' },
 		})
 		const zoomFrame = previewStage.createDiv({ cls: 'image-zoom-frame' })
+		const horizontalPanRow = previewPane.createEl('label', { cls: 'image-pan-control', text: 'Horizontal position' })
+		const horizontalPan = horizontalPanRow.createEl('input', { type: 'range', attr: { min: '0', max: '0', step: '1', 'aria-label': 'Horizontal image position' } })
+		const verticalPanRow = previewPane.createEl('label', { cls: 'image-pan-control', text: 'Vertical position' })
+		const verticalPan = verticalPanRow.createEl('input', { type: 'range', attr: { min: '0', max: '0', step: '1', 'aria-label': 'Vertical image position' } })
 		let zoomLevel = 3
 		let zoomCenterX = 0.5
 		let zoomCenterY = 0.5
@@ -586,6 +593,45 @@ class ImageRenameModal extends Modal {
 			zoomImage.style.left = (zoomWindow.clientWidth / 2 - (left + frameWidth / 2) * zoom) + 'px'
 			zoomImage.style.top = (zoomWindow.clientHeight / 2 - (top + frameHeight / 2) * zoom) + 'px'
 		}
+		const layoutPreview = () => {
+			const naturalWidth = previewImage.naturalWidth
+			const naturalHeight = previewImage.naturalHeight
+			const availableWidth = previewViewport.clientWidth
+			if (!naturalWidth || !naturalHeight || !availableWidth) return
+			// Fit normally, but keep the shorter edge at least 120 px (never upscale).
+			// Extreme aspect ratios overflow this bounded viewport instead of shrinking to a sliver.
+			const fitScale = Math.min(1, availableWidth / naturalWidth, previewHeight / naturalHeight)
+			const minimumScale = Math.min(1, 120 / Math.min(naturalWidth, naturalHeight))
+			const scale = Math.max(fitScale, minimumScale)
+			const width = naturalWidth * scale
+			const height = naturalHeight * scale
+			previewStage.style.width = width + 'px'
+			previewStage.style.height = height + 'px'
+			previewViewport.style.height = Math.min(previewHeight, height) + 'px'
+			previewViewport.scrollLeft = Math.max(0, zoomCenterX * width - availableWidth / 2)
+			previewViewport.scrollTop = Math.max(0, zoomCenterY * height - previewViewport.clientHeight / 2)
+			const horizontalLimit = previewViewport.scrollWidth - previewViewport.clientWidth
+			const verticalLimit = previewViewport.scrollHeight - previewViewport.clientHeight
+			horizontalPanRow.hidden = horizontalLimit <= 1
+			verticalPanRow.hidden = verticalLimit <= 1
+			horizontalPan.max = String(Math.max(0, horizontalLimit))
+			verticalPan.max = String(Math.max(0, verticalLimit))
+			horizontalPan.value = String(previewViewport.scrollLeft)
+			verticalPan.value = String(previewViewport.scrollTop)
+			updateZoomPreview()
+		}
+		horizontalPan.addEventListener('input', () => { previewViewport.scrollLeft = Number(horizontalPan.value) })
+		verticalPan.addEventListener('input', () => { previewViewport.scrollTop = Number(verticalPan.value) })
+		previewViewport.addEventListener('scroll', () => {
+			if (!previewStage.clientWidth || !previewStage.clientHeight) return
+			horizontalPan.value = String(previewViewport.scrollLeft)
+			verticalPan.value = String(previewViewport.scrollTop)
+			zoomCenterX = (previewViewport.scrollLeft + Math.min(previewStage.clientWidth, previewViewport.clientWidth) / 2) / previewStage.clientWidth
+			zoomCenterY = (previewViewport.scrollTop + Math.min(previewStage.clientHeight, previewViewport.clientHeight) / 2) / previewStage.clientHeight
+			updateZoomPreview()
+		})
+		this.previewObserver = new ResizeObserver(layoutPreview)
+		this.previewObserver.observe(previewPane)
 		const applyPreviewHeight = () => {
 			previewHeight = clampPreviewHeight(previewHeight)
 			const scale = previewHeight / 300
@@ -593,7 +639,7 @@ class ImageRenameModal extends Modal {
 			previewSection.style.setProperty('--preview-panel-width', Math.max(160, Math.round(260 * scale)) + 'px')
 			previewSection.style.setProperty('--preview-zoom-height', Math.max(80, Math.round(190 * scale)) + 'px')
 			resizeHandle.setAttribute('aria-valuenow', String(previewHeight))
-			updateZoomPreview()
+			layoutPreview()
 		}
 		const persistPreviewHeight = () => {
 			this.settings.previewHeights[screenSizeKey] = previewHeight
@@ -631,7 +677,7 @@ class ImageRenameModal extends Modal {
 			zoomLevel = Number(zoomSelect.value)
 			updateZoomPreview()
 		})
-		previewImage.addEventListener('load', updateZoomPreview)
+		previewImage.addEventListener('load', layoutPreview)
 		previewImage.addEventListener('dragstart', event => event.preventDefault())
 		previewStage.addEventListener('pointerdown', event => {
 			event.preventDefault()
@@ -966,6 +1012,7 @@ class ImageRenameModal extends Modal {
 
 	onClose() {
 		++this.previewVersion
+		this.previewObserver?.disconnect()
 		if (this.previewTimer) window.clearTimeout(this.previewTimer)
 		if (this.resizeSaveTimer) {
 			window.clearTimeout(this.resizeSaveTimer)
