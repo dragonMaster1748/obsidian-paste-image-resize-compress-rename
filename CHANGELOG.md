@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.13 — 2026-10-07
+
+- Prevent native image dragging while positioning the red focus box.
+- Apply the selected zoom level fully, including on small images.
+
 ## 0.1.12 — 2026-10-07
 
 - Place zoom controls and the detail preview beside the full image on wider screens; stack them below the image on narrow screens.
