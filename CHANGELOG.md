@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.11 — 2026-10-07
+
+- Add adjustable zoom detail to the image preview. Drag the red focus box over the image and choose a zoom level to inspect lettering before saving.
+
 ## 0.1.10 — 2026-09-24
 
 - Add a configurable preview size target in plugin settings, accepting values such as 100 KB or 2 MB while keeping 100 KB as the starting value.
