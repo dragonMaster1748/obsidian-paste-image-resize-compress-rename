@@ -520,7 +520,7 @@ class ImageRenameModal extends Modal {
 	resizeSaveTimer?: number
 	previewVersion = 0
 
-	constructor(app: App, src: TFile, stem: string, settings: PluginSettings, logPreviewError: (entry: string) => void, renameFunc: (path: string, processed?: ArrayBuffer) => Promise<void>, onClose: () => void, saveSettings: () => Promise<void>) {
+	constructor(app: App, src: TFile, stem: string, settings: PluginSettings, saveSettings: () => Promise<void>, logPreviewError: (entry: string) => void, renameFunc: (path: string, processed?: ArrayBuffer) => Promise<void>, onClose: () => void) {
 		super(app);
 		this.src = src
 		this.stem = stem
