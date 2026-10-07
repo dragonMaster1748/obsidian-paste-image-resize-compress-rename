@@ -539,12 +539,13 @@ class ImageRenameModal extends Modal {
 		let zoomLevel = 3
 		let zoomCenterX = 0.5
 		let zoomCenterY = 0.5
-		const zoomControls = contentEl.createDiv({ cls: 'image-zoom-controls' })
+		const zoomPanel = imageContainer.createDiv({ cls: 'image-zoom-panel' })
+		const zoomControls = zoomPanel.createDiv({ cls: 'image-zoom-controls' })
 		zoomControls.createSpan({ text: 'Zoom detail' })
 		const zoomSelect = zoomControls.createEl('select', { attr: { 'aria-label': 'Preview zoom level' } })
 		for (const level of [2, 3, 4, 6, 8]) zoomSelect.createEl('option', { value: String(level), text: level + '×' })
 		zoomSelect.value = String(zoomLevel)
-		const zoomWindow = contentEl.createDiv({ cls: 'image-zoom-window', attr: { 'aria-label': 'Zoomed image detail' } })
+		const zoomWindow = zoomPanel.createDiv({ cls: 'image-zoom-window', attr: { 'aria-label': 'Zoomed image detail' } })
 		const zoomImage = zoomWindow.createEl('img')
 		const updateZoomPreview = () => {
 			const width = previewStage.clientWidth
