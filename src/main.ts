@@ -533,6 +533,7 @@ class ImageRenameModal extends Modal {
 		const imageContainer = contentEl.createDiv({ cls: 'image-container' })
 		const previewStage = imageContainer.createDiv({ cls: 'image-preview-stage' })
 		const previewImage = previewStage.createEl('img', {
+			attr: { draggable: 'false' },
 			attr: { src: this.app.vault.getResourcePath(this.src) },
 		})
 		const zoomFrame = previewStage.createDiv({ cls: 'image-zoom-frame' })
@@ -551,7 +552,7 @@ class ImageRenameModal extends Modal {
 			const width = previewStage.clientWidth
 			const height = previewStage.clientHeight
 			if (!width || !height) return
-			const zoom = Math.min(zoomLevel, width / 48, height / 36)
+			const zoom = zoomLevel
 			const frameWidth = Math.min(width, zoomWindow.clientWidth / zoom)
 			const frameHeight = Math.min(height, zoomWindow.clientHeight / zoom)
 			const left = Math.max(0, Math.min(width - frameWidth, zoomCenterX * width - frameWidth / 2))
@@ -571,7 +572,9 @@ class ImageRenameModal extends Modal {
 			updateZoomPreview()
 		})
 		previewImage.addEventListener('load', updateZoomPreview)
+		previewImage.addEventListener('dragstart', event => event.preventDefault())
 		previewStage.addEventListener('pointerdown', event => {
+			event.preventDefault()
 			const moveFrame = (pointerEvent: PointerEvent) => {
 				const rect = previewStage.getBoundingClientRect()
 				zoomCenterX = Math.max(0, Math.min(1, (pointerEvent.clientX - rect.left) / rect.width))
