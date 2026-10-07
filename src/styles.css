@@ -18,10 +18,16 @@
 	padding: 10px 5px;
 }
 .image-rename-modal .image-container {
+	position: sticky;
+	top: 0;
+	z-index: 10;
 	display: flex;
 	align-items: flex-start;
 	justify-content: center;
 	gap: 1rem;
+	padding: .5em 0 .75em;
+	background: var(--background-primary);
+	box-shadow: 0 6px 8px var(--background-primary);
 }
 
 .image-rename-modal .info {
