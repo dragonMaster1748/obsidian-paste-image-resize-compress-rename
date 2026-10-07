@@ -533,8 +533,7 @@ class ImageRenameModal extends Modal {
 		const imageContainer = contentEl.createDiv({ cls: 'image-container' })
 		const previewStage = imageContainer.createDiv({ cls: 'image-preview-stage' })
 		const previewImage = previewStage.createEl('img', {
-			attr: { draggable: 'false' },
-			attr: { src: this.app.vault.getResourcePath(this.src) },
+			attr: { src: this.app.vault.getResourcePath(this.src), draggable: 'false' },
 		})
 		const zoomFrame = previewStage.createDiv({ cls: 'image-zoom-frame' })
 		let zoomLevel = 3
