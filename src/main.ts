@@ -530,13 +530,63 @@ class ImageRenameModal extends Modal {
 		const { contentEl, titleEl } = this;
 		titleEl.setText('Rename image')
 
-		const imageContainer = contentEl.createDiv({
-			cls: 'image-container',
+		const imageContainer = contentEl.createDiv({ cls: 'image-container' })
+		const previewStage = imageContainer.createDiv({ cls: 'image-preview-stage' })
+		const previewImage = previewStage.createEl('img', {
+			attr: { src: this.app.vault.getResourcePath(this.src) },
 		})
-		const previewImage = imageContainer.createEl('img', {
-			attr: {
-				src: this.app.vault.getResourcePath(this.src),
+		const zoomFrame = previewStage.createDiv({ cls: 'image-zoom-frame' })
+		let zoomLevel = 3
+		let zoomCenterX = 0.5
+		let zoomCenterY = 0.5
+		const zoomControls = contentEl.createDiv({ cls: 'image-zoom-controls' })
+		zoomControls.createSpan({ text: 'Zoom detail' })
+		const zoomSelect = zoomControls.createEl('select', { attr: { 'aria-label': 'Preview zoom level' } })
+		for (const level of [2, 3, 4, 6, 8]) zoomSelect.createEl('option', { value: String(level), text: level + '×' })
+		zoomSelect.value = String(zoomLevel)
+		const zoomWindow = contentEl.createDiv({ cls: 'image-zoom-window', attr: { 'aria-label': 'Zoomed image detail' } })
+		const zoomImage = zoomWindow.createEl('img')
+		const updateZoomPreview = () => {
+			const width = previewStage.clientWidth
+			const height = previewStage.clientHeight
+			if (!width || !height) return
+			const zoom = Math.min(zoomLevel, width / 48, height / 36)
+			const frameWidth = Math.min(width, zoomWindow.clientWidth / zoom)
+			const frameHeight = Math.min(height, zoomWindow.clientHeight / zoom)
+			const left = Math.max(0, Math.min(width - frameWidth, zoomCenterX * width - frameWidth / 2))
+			const top = Math.max(0, Math.min(height - frameHeight, zoomCenterY * height - frameHeight / 2))
+			zoomFrame.style.width = frameWidth + 'px'
+			zoomFrame.style.height = frameHeight + 'px'
+			zoomFrame.style.left = left + 'px'
+			zoomFrame.style.top = top + 'px'
+			zoomImage.src = previewImage.src
+			zoomImage.style.width = width * zoom + 'px'
+			zoomImage.style.height = height * zoom + 'px'
+			zoomImage.style.left = (zoomWindow.clientWidth / 2 - (left + frameWidth / 2) * zoom) + 'px'
+			zoomImage.style.top = (zoomWindow.clientHeight / 2 - (top + frameHeight / 2) * zoom) + 'px'
+		}
+		zoomSelect.addEventListener('change', () => {
+			zoomLevel = Number(zoomSelect.value)
+			updateZoomPreview()
+		})
+		previewImage.addEventListener('load', updateZoomPreview)
+		previewStage.addEventListener('pointerdown', event => {
+			const moveFrame = (pointerEvent: PointerEvent) => {
+				const rect = previewStage.getBoundingClientRect()
+				zoomCenterX = Math.max(0, Math.min(1, (pointerEvent.clientX - rect.left) / rect.width))
+				zoomCenterY = Math.max(0, Math.min(1, (pointerEvent.clientY - rect.top) / rect.height))
+				updateZoomPreview()
 			}
+			moveFrame(event)
+			previewStage.setPointerCapture(event.pointerId)
+			const stopMoving = () => {
+				previewStage.removeEventListener('pointermove', moveFrame)
+				previewStage.removeEventListener('pointerup', stopMoving)
+				previewStage.removeEventListener('pointercancel', stopMoving)
+			}
+			previewStage.addEventListener('pointermove', moveFrame)
+			previewStage.addEventListener('pointerup', stopMoving)
+			previewStage.addEventListener('pointercancel', stopMoving)
 		})
 
 		let stem = this.stem
