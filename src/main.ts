@@ -52,6 +52,7 @@ interface PluginSettings {
 	defaultJpegQuality: number
 	imageSizeTarget: string
 	previewErrors: string[]
+	previewHeights: Record<string, number>
 }
 
 const DEFAULT_SETTINGS: PluginSettings = {
@@ -68,6 +69,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
 	defaultJpegQuality: 85,
 	imageSizeTarget: '100 KB',
 	previewErrors: [],
+	previewHeights: {},
 }
 
 // Blank or zero disables the goal; invalid values are rejected in settings.
@@ -274,6 +276,7 @@ export default class PasteImageRenamePlugin extends Plugin {
 	openRenameModal(file: TFile, newName: string, sourcePath: string) {
 		const modal = new ImageRenameModal(
 			this.app, file as TFile, newName, this.settings,
+			() => this.saveSettings(),
 			(entry: string) => { void this.recordPreviewError(entry) },
 			async (confirmedName: string, processed?: ArrayBuffer) => {
 				await this.saveProcessedImage(file, confirmedName, sourcePath, processed)
@@ -509,18 +512,21 @@ class ImageRenameModal extends Modal {
 	stem: string
 	settings: PluginSettings
 	logPreviewError: (entry: string) => void
+	saveSettings: () => Promise<void>
 	renameFunc: (path: string, processed?: ArrayBuffer) => Promise<void>
 	onCloseExtra: () => void
 	previewUrl?: string
 	previewTimer?: number
+	resizeSaveTimer?: number
 	previewVersion = 0
 
-	constructor(app: App, src: TFile, stem: string, settings: PluginSettings, logPreviewError: (entry: string) => void, renameFunc: (path: string, processed?: ArrayBuffer) => Promise<void>, onClose: () => void) {
+	constructor(app: App, src: TFile, stem: string, settings: PluginSettings, logPreviewError: (entry: string) => void, renameFunc: (path: string, processed?: ArrayBuffer) => Promise<void>, onClose: () => void, saveSettings: () => Promise<void>) {
 		super(app);
 		this.src = src
 		this.stem = stem
 		this.settings = settings
 		this.logPreviewError = logPreviewError
+		this.saveSettings = saveSettings
 		this.renameFunc = renameFunc
 		this.onCloseExtra = onClose
 	}
@@ -530,7 +536,8 @@ class ImageRenameModal extends Modal {
 		const { contentEl, titleEl } = this;
 		titleEl.setText('Rename image')
 
-		const imageContainer = contentEl.createDiv({ cls: 'image-container' })
+		const previewSection = contentEl.createDiv({ cls: 'image-preview-section' })
+		const imageContainer = previewSection.createDiv({ cls: 'image-container' })
 		const previewStage = imageContainer.createDiv({ cls: 'image-preview-stage' })
 		const previewImage = previewStage.createEl('img', {
 			attr: { src: this.app.vault.getResourcePath(this.src), draggable: 'false' },
@@ -547,6 +554,19 @@ class ImageRenameModal extends Modal {
 		zoomSelect.value = String(zoomLevel)
 		const zoomWindow = zoomPanel.createDiv({ cls: 'image-zoom-window', attr: { 'aria-label': 'Zoomed image detail' } })
 		const zoomImage = zoomWindow.createEl('img')
+		const resizeHandle = previewSection.createDiv({
+			cls: 'image-preview-resize-handle',
+			attr: { role: 'separator', 'aria-orientation': 'horizontal', 'aria-label': 'Resize image preview', tabindex: '0' },
+		})
+		resizeHandle.createDiv({ cls: 'image-preview-resize-grip' })
+		const screenSizeKey = `${Math.round(window.screen.width / 100) * 100}x${Math.round(window.screen.height / 100) * 100}`
+		const minPreviewHeight = 100
+		const maxPreviewHeight = Math.max(140, Math.min(600, Math.round(window.innerHeight * 0.6)))
+		const defaultPreviewHeight = Math.max(minPreviewHeight, Math.min(300, Math.round(window.innerHeight * 0.24)))
+		this.settings.previewHeights ??= {}
+		let previewHeight = this.settings.previewHeights[screenSizeKey] ?? defaultPreviewHeight
+		const clampPreviewHeight = (value: number) => Math.max(minPreviewHeight, Math.min(maxPreviewHeight, Math.round(value)))
+		previewHeight = clampPreviewHeight(previewHeight)
 		const updateZoomPreview = () => {
 			const width = previewStage.clientWidth
 			const height = previewStage.clientHeight
@@ -566,6 +586,47 @@ class ImageRenameModal extends Modal {
 			zoomImage.style.left = (zoomWindow.clientWidth / 2 - (left + frameWidth / 2) * zoom) + 'px'
 			zoomImage.style.top = (zoomWindow.clientHeight / 2 - (top + frameHeight / 2) * zoom) + 'px'
 		}
+		const applyPreviewHeight = () => {
+			previewHeight = clampPreviewHeight(previewHeight)
+			const scale = previewHeight / 300
+			previewSection.style.setProperty('--preview-max-height', previewHeight + 'px')
+			previewSection.style.setProperty('--preview-panel-width', Math.max(160, Math.round(260 * scale)) + 'px')
+			previewSection.style.setProperty('--preview-zoom-height', Math.max(80, Math.round(190 * scale)) + 'px')
+			resizeHandle.setAttribute('aria-valuenow', String(previewHeight))
+			updateZoomPreview()
+		}
+		const persistPreviewHeight = () => {
+			this.settings.previewHeights[screenSizeKey] = previewHeight
+			if (this.resizeSaveTimer) window.clearTimeout(this.resizeSaveTimer)
+			this.resizeSaveTimer = window.setTimeout(() => { void this.saveSettings() }, 400)
+		}
+		resizeHandle.addEventListener('pointerdown', event => {
+			event.preventDefault()
+			const startY = event.clientY
+			const startHeight = previewHeight
+			resizeHandle.setPointerCapture(event.pointerId)
+			const resize = (moveEvent: PointerEvent) => {
+				previewHeight = clampPreviewHeight(startHeight + moveEvent.clientY - startY)
+				applyPreviewHeight()
+				persistPreviewHeight()
+			}
+			const stop = () => {
+				resizeHandle.removeEventListener('pointermove', resize)
+				resizeHandle.removeEventListener('pointerup', stop)
+				resizeHandle.removeEventListener('pointercancel', stop)
+			}
+			resizeHandle.addEventListener('pointermove', resize)
+			resizeHandle.addEventListener('pointerup', stop)
+			resizeHandle.addEventListener('pointercancel', stop)
+		})
+		resizeHandle.addEventListener('keydown', event => {
+			if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+			event.preventDefault()
+			previewHeight = clampPreviewHeight(previewHeight + (event.key === 'ArrowUp' ? 20 : -20))
+			applyPreviewHeight()
+			persistPreviewHeight()
+		})
+		applyPreviewHeight()
 		zoomSelect.addEventListener('change', () => {
 			zoomLevel = Number(zoomSelect.value)
 			updateZoomPreview()
@@ -906,6 +967,10 @@ class ImageRenameModal extends Modal {
 	onClose() {
 		++this.previewVersion
 		if (this.previewTimer) window.clearTimeout(this.previewTimer)
+		if (this.resizeSaveTimer) {
+			window.clearTimeout(this.resizeSaveTimer)
+			void this.saveSettings()
+		}
 		if (this.previewUrl) URL.revokeObjectURL(this.previewUrl)
 		const { contentEl } = this;
 		contentEl.empty();
