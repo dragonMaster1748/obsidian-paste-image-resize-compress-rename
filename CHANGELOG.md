@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.16 — 2026-10-07
+
+- Adapt the preview to screen height and add a touch-friendly resize handle. Save each screen orientation's preview size for later use.
+
 ## 0.1.15 — 2026-10-07
 
 - Hide JPEG processing controls and processing-only details when Original (rename only) is selected; restore them when JPEG is selected.
