@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.15 — 2026-10-07
+
+- Hide JPEG processing controls and processing-only details when Original (rename only) is selected; restore them when JPEG is selected.
+
 ## 0.1.14 — 2026-10-07
 
 - Keep the image and zoom preview visible at the top of the dialog while scrolling through processing settings.
