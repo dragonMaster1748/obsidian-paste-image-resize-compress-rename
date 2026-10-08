@@ -566,13 +566,15 @@ class ImageRenameModal extends Modal {
 			attr: { role: 'separator', 'aria-orientation': 'horizontal', 'aria-label': 'Resize image preview', tabindex: '0' },
 		})
 		resizeHandle.createDiv({ cls: 'image-preview-resize-grip' })
-		const screenSizeKey = `${Math.round(window.screen.width / 100) * 100}x${Math.round(window.screen.height / 100) * 100}`
-		const minPreviewHeight = 100
-		const maxPreviewHeight = Math.max(140, Math.min(600, Math.round(window.innerHeight * 0.6)))
-		const defaultPreviewHeight = Math.max(minPreviewHeight, Math.min(300, Math.round(window.innerHeight * 0.24)))
+		const availableHeight = () => Math.min(window.visualViewport?.height ?? window.innerHeight, this.modalEl.clientHeight || window.innerHeight)
+		const viewportKey = () => `viewport:${Math.round(contentEl.clientWidth / 100) * 100}x${Math.round(availableHeight() / 100) * 100}`
+		const minPreviewHeight = 48
+		const maxPreviewHeight = () => Math.max(minPreviewHeight, Math.min(450, Math.floor(availableHeight() * 0.5) - 100))
+		const defaultPreviewHeight = () => Math.max(minPreviewHeight, Math.min(240, Math.round(availableHeight() * 0.25)))
 		this.settings.previewHeights ??= {}
-		let previewHeight = this.settings.previewHeights[screenSizeKey] ?? defaultPreviewHeight
-		const clampPreviewHeight = (value: number) => Math.max(minPreviewHeight, Math.min(maxPreviewHeight, Math.round(value)))
+		let screenSizeKey = viewportKey()
+		let previewHeight = this.settings.previewHeights[screenSizeKey] ?? defaultPreviewHeight()
+		const clampPreviewHeight = (value: number) => Math.max(minPreviewHeight, Math.min(maxPreviewHeight(), Math.round(value)))
 		previewHeight = clampPreviewHeight(previewHeight)
 		const updateZoomPreview = () => {
 			const width = previewStage.clientWidth
@@ -594,6 +596,17 @@ class ImageRenameModal extends Modal {
 			zoomImage.style.top = (zoomWindow.clientHeight / 2 - (top + frameHeight / 2) * zoom) + 'px'
 		}
 		const layoutPreview = () => {
+			const currentKey = viewportKey()
+			if (currentKey !== screenSizeKey) {
+				screenSizeKey = currentKey
+				previewHeight = this.settings.previewHeights[screenSizeKey] ?? defaultPreviewHeight()
+			}
+			previewHeight = clampPreviewHeight(previewHeight)
+			previewSection.style.setProperty('--preview-max-height', previewHeight + 'px')
+			previewSection.style.setProperty('--preview-zoom-height', Math.max(40, Math.round(previewHeight * 0.65)) + 'px')
+			resizeHandle.setAttribute('aria-valuemin', String(minPreviewHeight))
+			resizeHandle.setAttribute('aria-valuemax', String(maxPreviewHeight()))
+			resizeHandle.setAttribute('aria-valuenow', String(previewHeight))
 			const naturalWidth = previewImage.naturalWidth
 			const naturalHeight = previewImage.naturalHeight
 			const availableWidth = previewViewport.clientWidth
@@ -632,13 +645,9 @@ class ImageRenameModal extends Modal {
 		})
 		this.previewObserver = new ResizeObserver(layoutPreview)
 		this.previewObserver.observe(previewPane)
+		this.previewObserver.observe(this.modalEl)
 		const applyPreviewHeight = () => {
 			previewHeight = clampPreviewHeight(previewHeight)
-			const scale = previewHeight / 300
-			previewSection.style.setProperty('--preview-max-height', previewHeight + 'px')
-			previewSection.style.setProperty('--preview-panel-width', Math.max(160, Math.round(260 * scale)) + 'px')
-			previewSection.style.setProperty('--preview-zoom-height', Math.max(80, Math.round(190 * scale)) + 'px')
-			resizeHandle.setAttribute('aria-valuenow', String(previewHeight))
 			layoutPreview()
 		}
 		const persistPreviewHeight = () => {
@@ -668,7 +677,7 @@ class ImageRenameModal extends Modal {
 		resizeHandle.addEventListener('keydown', event => {
 			if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
 			event.preventDefault()
-			previewHeight = clampPreviewHeight(previewHeight + (event.key === 'ArrowUp' ? 20 : -20))
+			previewHeight = clampPreviewHeight(previewHeight + (event.key === 'ArrowUp' ? -20 : 20))
 			applyPreviewHeight()
 			persistPreviewHeight()
 		})
