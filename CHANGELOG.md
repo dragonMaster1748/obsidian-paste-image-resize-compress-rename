@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.18 — 2026-10-07
+
+- Keep previews in bounded left/right columns on Android split screen; allow smaller preview heights and remember full-screen and split-screen layouts separately using app-window dimensions.
+- Recalculate layout limits when the dialog size changes.
+
 ## 0.1.17 — 2026-10-07
 
 - Limit shrinking of extreme image proportions, then show a bounded, scrollable preview with position sliders. Keep zoom controls inside the dialog.
