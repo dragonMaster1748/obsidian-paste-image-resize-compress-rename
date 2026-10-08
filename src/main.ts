@@ -52,6 +52,7 @@ interface PluginSettings {
 	defaultJpegQuality: number
 	imageSizeTarget: string
 	previewErrors: string[]
+	previewOpacity: number
 	previewHeights: Record<string, number>
 }
 
@@ -69,6 +70,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
 	defaultJpegQuality: 85,
 	imageSizeTarget: '100 KB',
 	previewErrors: [],
+	previewOpacity: 100,
 	previewHeights: {},
 }
 
@@ -458,6 +460,8 @@ export default class PasteImageRenamePlugin extends Plugin {
 
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings.previewOpacity = Number.isFinite(this.settings.previewOpacity)
+			? Math.max(0, Math.min(100, this.settings.previewOpacity)) : 100
 	}
 
 	async saveSettings() {
@@ -538,6 +542,9 @@ class ImageRenameModal extends Modal {
 		titleEl.setText('Rename image')
 
 		const previewSection = contentEl.createDiv({ cls: 'image-preview-section' })
+		// Display only: never change the canvas or JPEG encoder's image pixels.
+		previewSection.style.opacity = String(this.settings.previewOpacity / 100)
+		if (this.settings.previewOpacity === 0) previewSection.style.visibility = 'hidden'
 		const imageContainer = previewSection.createDiv({ cls: 'image-container' })
 		const previewPane = imageContainer.createDiv({ cls: 'image-preview-pane' })
 		const previewViewport = previewPane.createDiv({ cls: 'image-preview-viewport' })
@@ -1100,6 +1107,15 @@ class SettingTab extends PluginSettingTab {
 				}
 				targetSetting.setDesc('Optional preview goal. Examples: 100 KB or 2 MB. Numbers without a unit mean KB; 1 KB = 1,024 bytes. Leave blank or enter 0 to hide the goal.')
 				this.plugin.settings.imageSizeTarget = value
+				await this.plugin.saveSettings()
+			}))
+
+		containerEl.createEl('h2', { text: 'Preview display' })
+		new Setting(containerEl)
+			.setName('Preview opacity')
+			.setDesc('Opacity of the locked preview section: 0% hides it, 100% is fully opaque. Saved for future image dialogs. Does not affect the exported image or compression.')
+			.addSlider(slider => slider.setLimits(0, 100, 1).setValue(this.plugin.settings.previewOpacity).setDynamicTooltip().onChange(async value => {
+				this.plugin.settings.previewOpacity = value
 				await this.plugin.saveSettings()
 			}))
 

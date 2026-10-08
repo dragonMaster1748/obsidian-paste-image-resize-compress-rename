@@ -26,3 +26,7 @@ When updating, replace `main.js`, `manifest.json`, and `styles.css` in that same
 ## Branches and versions
 
 `main` contains the customized fork; `dev` serves as a reference to the original fork. See [CHANGELOG.md](CHANGELOG.md) for this fork's version history. The fork's versions start at `0.1.0` and are independent of the original plugin.
+
+### Preview opacity
+
+Under Settings → Community plugins → Paste Image Resize Compress Rename, set **Preview opacity** from 0% (hidden) to 100% (fully opaque, default). This preference is saved and applied whenever you open an image dialog. It affects only the locked preview section, including its background and zoom preview. At 0%, the invisible section cannot intercept clicks or keyboard focus; its layout space is retained. Exported images and compression settings are unaffected.

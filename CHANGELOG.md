@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.19
+
+- Added a saved Preview opacity slider (0–100%) in plugin settings for the locked preview section. Exported image pixels and compression are unaffected.
+
 ## 0.1.18 — 2026-10-07
 
 - Keep previews in bounded left/right columns on Android split screen; allow smaller preview heights and remember full-screen and split-screen layouts separately using app-window dimensions.
