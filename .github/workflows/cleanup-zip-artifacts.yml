@@ -1,0 +1,36 @@
+name: Retain latest five ZIP artifacts
+
+on:
+  workflow_run:
+    workflows: ["Build Obsidian plugin ZIP"]
+    types: [completed]
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/cleanup-zip-artifacts.yml
+      - .github/scripts/cleanup-zip-artifacts.py
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: zip-artifact-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Check retention selection
+        run: python3 .github/scripts/cleanup-zip-artifacts.py --self-test
+      - name: Delete obsolete ZIP artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/cleanup-zip-artifacts.py

@@ -21,3 +21,11 @@
 - For each subsequent code modification, increment the patch version (`0.1.1`, `0.1.2`, and so on) unless the user requests a different version. Keep `package.json`, `package-lock.json`, `manifest.json`, and `versions.json` synchronized. `npm version <version> --no-git-tag-version` runs this repository's version script; inspect the resulting files before committing.
 - Add a concise entry to `CHANGELOG.md` with the new version and the user-visible change for each versioned code modification. Update documentation when behavior changes.
 - Keep work focused on the requested change and repository build; avoid unrelated refactors and redundant checks.
+
+## ZIP build artifact retention
+
+- Keep only the five newest available successful install/source ZIP artifacts in this repository, ordered by creation time (five builds, even when version numbers repeat). Automatically delete older ZIPs and artifacts from failed/cancelled ZIP builds after completion. Preserve artifacts from active runs.
+- Maintain automatic GitHub Actions cleanup whenever a ZIP artifact upload workflow exists or is added. Keep cleanup limited to the repository's install/source ZIP workflows and their known artifact names; retain related screenshots only for retained builds. Paginate artifact listings and verify completed run outcomes before deletion.
+- This policy concerns GitHub Actions build artifacts. Do not delete source code, commit history, tags, GitHub Releases, Docker images, personal backups, or unrelated artifacts. Users archive downloaded versions locally.
+- Add the policy to future ZIP workflows; do not add ZIP builds to projects that do not use them. Agent-instruction/CI maintenance changes alone do not require application version bumps or manual application builds.
+- Confirm cleanup succeeds. Report quota blockers honestly: account-wide storage and delayed GitHub usage recalculation can still block uploads.
