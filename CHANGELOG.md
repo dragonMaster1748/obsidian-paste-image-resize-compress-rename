@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.23 — 2026-11-12
+
+- Remove the duplicate selected-width number added by recent Obsidian versions. Keep one live selected width on the left and the fixed original maximum on the right.
+
 ## 0.1.22 — 2026-11-12
 
 - Add a default-off Open Files directly on Android setting to skip the Camera/Files choice in Insert attachment while retaining Obsidian’s native Files import action. Other platforms are unaffected.

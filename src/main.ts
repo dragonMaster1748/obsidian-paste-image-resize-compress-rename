@@ -998,7 +998,7 @@ class ImageRenameModal extends Modal {
 					}
 					if (outputFormat === 'jpeg') schedulePreview()
 				}))
-			const widthSetting = new Setting(imageSettingsEl).setName('Maximum width (px)').setDesc('Starts at the original width. Slide left to shrink; 0 uses a 1-pixel minimum. Aspect ratio is preserved; shrinking can make small text unreadable.')
+			const widthSetting = new Setting(imageSettingsEl).setClass('image-width-setting').setName('Maximum width (px)').setDesc('Starts at the original width. Slide left to shrink; 0 uses a 1-pixel minimum. Aspect ratio is preserved; shrinking can make small text unreadable.')
 			widthSetting.addSlider(slider => {
 				const valueEl = widthSetting.controlEl.createSpan({ text: 'Loading…' })
 				widthSetting.controlEl.insertBefore(valueEl, slider.sliderEl)
@@ -1006,7 +1006,7 @@ class ImageRenameModal extends Modal {
 				const maxEl = widthSetting.controlEl.createSpan({ text: 'Loading…' })
 				maxEl.title = 'Original maximum width'
 				slider.sliderEl.setAttribute('aria-label', 'Maximum width (px)')
-				slider.setLimits(0, 1, 1).setValue(1).setDisabled(true)
+				slider.setLimits(0, 1, 1).setValue(1).setDisabled(true).setInstant(true)
 				setWidthSlider = width => {
 					slider.setLimits(0, width, 1).setValue(width).setDisabled(false)
 					valueEl.setText(`${width} px`)

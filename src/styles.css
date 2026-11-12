@@ -235,6 +235,11 @@
 	max-width: 100%;
 }
 
+/* Recent Obsidian versions add their own value beside every slider. */
+.image-rename-modal .image-width-setting .slider-value {
+	display: none;
+}
+
 /*
 .image-rename-modal .setting-item {
 	flex-wrap: wrap;
