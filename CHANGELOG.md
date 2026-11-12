@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.20 — 2026-11-12
+
+- Show original image resolution and file size in Original (rename only).
+- Replace Maximum width with a slider from 0 to the original width, starting at full width. Display the selected pixel value; 0 produces the minimum valid 1-pixel width.
+
 ## 0.1.19
 
 - Added a saved Preview opacity slider (0–100%) in plugin settings for the locked preview section. Exported image pixels and compression are unaffected.

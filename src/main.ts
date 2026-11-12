@@ -724,6 +724,16 @@ class ImageRenameModal extends Modal {
 			: 'original'
 		let preserveText = this.settings.preserveTextByDefault
 		let maxWidth = 0
+		let sourceWidth = 0
+		let sourceHeight = 0
+		let setWidthSlider = (_width: number) => { /* assigned by the width slider below */ }
+		const setSourceDimensions = (width: number, height: number) => {
+			if (sourceWidth) return
+			sourceWidth = width
+			sourceHeight = height
+			maxWidth = width
+			setWidthSlider(width)
+		}
 		let quality = preserveText ? Math.max(95, this.settings.defaultJpegQuality) : this.settings.defaultJpegQuality
 		let processed: ArrayBuffer | undefined
 		const getNewName = (stem: string) => stem + '.' + (outputFormat === 'jpeg' ? 'jpg' : ext)
@@ -733,10 +743,12 @@ class ImageRenameModal extends Modal {
 		}
 
 		const processingDetails = contentEl.createDiv({ cls: 'image-processing-details' })
+		const originalInfo = contentEl.createDiv({ cls: 'image-preview-info' })
 		let processingSettingsEl: HTMLDivElement | undefined
 		const updateFormatVisibility = () => {
 			const renameOnly = outputFormat === 'original'
 			processingDetails.style.display = renameOnly ? 'none' : ''
+			originalInfo.style.display = renameOnly ? '' : 'none'
 			if (processingSettingsEl) processingSettingsEl.style.display = renameOnly ? 'none' : ''
 		}
 		const infoET = createElementTree(processingDetails, {
@@ -787,6 +799,16 @@ class ImageRenameModal extends Modal {
 		const formatSize = (bytes: number) => bytes >= 1024 * 1024
 			? `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 			: `${(bytes / 1024).toFixed(2)} KB`
+		const showOriginalInfo = () => originalInfo.setText(`${sourceWidth ? `${sourceWidth} × ${sourceHeight} px` : 'Loading resolution…'} · ${formatSize(this.src.stat.size)}`)
+		showOriginalInfo()
+		previewImage.addEventListener('load', () => {
+			if (outputFormat !== 'original') return
+			setSourceDimensions(previewImage.naturalWidth, previewImage.naturalHeight)
+			showOriginalInfo()
+		})
+		previewImage.addEventListener('error', () => {
+			if (outputFormat === 'original') originalInfo.setText(`Resolution unavailable · ${formatSize(this.src.stat.size)}`)
+		})
 		const showSizes = (originalBytes: number, outputBytes: number) => {
 			originalSizeEl.setText(formatSize(originalBytes))
 			outputSizeEl.setText(formatSize(outputBytes))
@@ -824,6 +846,7 @@ class ImageRenameModal extends Modal {
 				if (this.previewUrl) URL.revokeObjectURL(this.previewUrl)
 				this.previewUrl = undefined
 				previewImage.src = this.app.vault.getResourcePath(this.src)
+				showOriginalInfo()
 				previewInfo.setText('Original image; no image data will be changed.')
 				showSizes(this.src.stat.size, this.src.stat.size)
 				busy = false
@@ -850,7 +873,8 @@ class ImageRenameModal extends Modal {
 					URL.revokeObjectURL(sourceUrl)
 				}
 				if (version !== this.previewVersion) return
-				const scale = Math.min(1, maxWidth ? maxWidth / source.naturalWidth : 1)
+				setSourceDimensions(source.naturalWidth, source.naturalHeight)
+				const scale = Math.min(1, Math.max(1, maxWidth) / source.naturalWidth)
 				const width = Math.max(1, Math.round(source.naturalWidth * scale))
 				const height = Math.max(1, Math.round(source.naturalHeight * scale))
 				// Downscale the decoded original in stages before JPEG encoding.
@@ -968,11 +992,21 @@ class ImageRenameModal extends Modal {
 					}
 					if (outputFormat === 'jpeg') schedulePreview()
 				}))
-			const parseLimit = (value: string) => /^\d+$/.test(value) ? Math.min(20000, Number(value)) : 0
-			new Setting(imageSettingsEl).setName('Maximum width (px)').setDesc('0 keeps the original width. Aspect ratio is preserved; shrinking can make small text unreadable.').addText(text => text.setValue('0').onChange(value => {
-				maxWidth = parseLimit(value)
-				if (outputFormat !== 'original') schedulePreview()
-			}))
+			const widthSetting = new Setting(imageSettingsEl).setName('Maximum width (px)').setDesc('Starts at the original width. Slide left to shrink; 0 uses a 1-pixel minimum. Aspect ratio is preserved; shrinking can make small text unreadable.')
+			widthSetting.addSlider(slider => {
+				const valueEl = widthSetting.controlEl.createSpan({ text: 'Loading…' })
+				slider.sliderEl.setAttribute('aria-label', 'Maximum width (px)')
+				slider.setLimits(0, 1, 1).setValue(1).setDisabled(true).setDynamicTooltip()
+				setWidthSlider = width => {
+					slider.setLimits(0, width, 1).setValue(width).setDisabled(false)
+					valueEl.setText(`${width} px`)
+				}
+				slider.onChange(value => {
+					maxWidth = value
+					valueEl.setText(`${value} px`)
+					if (outputFormat !== 'original') schedulePreview()
+				})
+			})
 			new Setting(imageSettingsEl).setName('JPEG quality').setDesc('Higher values preserve more detail but make larger files.').addSlider(slider => {
 				setQualityValue = value => slider.setValue(value)
 				slider.setLimits(1, 100, 1).setValue(quality).setDynamicTooltip().onChange(value => {
