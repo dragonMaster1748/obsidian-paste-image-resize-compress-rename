@@ -136,7 +136,7 @@ export default class PasteImageRenamePlugin extends Plugin {
 			})
 		)
 		this.registerEvent(this.app.workspace.on('file-menu', (menu, file) => {
-			if (file instanceof TFile && ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(file.extension.toLowerCase())) {
+			if (file instanceof TFile && canEncodeImage(file.extension)) {
 				menu.addItem(item => item.setTitle('Rename or convert image…').setIcon('image').onClick(() => {
 					this.openRenameModal(file, file.basename, this.getActiveFile()?.path ?? file.path)
 				}))
@@ -183,7 +183,7 @@ export default class PasteImageRenamePlugin extends Plugin {
 		const { stem, newName, isMeaningful }= this.generateNewName(file, activeFile)
 		debugLog('generated newName:', newName, isMeaningful)
 
-		const showProcessingPreview = ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(file.extension.toLowerCase())
+		const showProcessingPreview = canEncodeImage(file.extension)
 			&& (this.settings.defaultJpegConversion || this.settings.preserveTextByDefault)
 		if (!isMeaningful || !autoRename || showProcessingPreview) {
 			this.openRenameModal(file, isMeaningful ? stem : '', activeFile.path)
@@ -505,8 +505,12 @@ function isMarkdownFile(file: TAbstractFile): boolean {
 }
 
 const IMAGE_EXTS = [
-	'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg',
+	'avif', 'bmp', 'gif', 'jpeg', 'jpg', 'png', 'svg', 'webp',
 ]
+
+function canEncodeImage(extension: string): boolean {
+	return ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(extension.toLowerCase())
+}
 
 function isImage(file: TAbstractFile): boolean {
 	if (file instanceof TFile) {
@@ -545,9 +549,13 @@ class ImageRenameModal extends Modal {
 	onOpen() {
 		this.containerEl.addClass('image-rename-modal')
 		const { contentEl, titleEl } = this;
-		titleEl.setText('Rename image')
+		const ext = this.src.extension
+		const canPreview = isImage(this.src)
+		const canEncode = canEncodeImage(ext)
+		titleEl.setText(canPreview ? 'Rename image' : 'Rename attachment')
 
 		const previewSection = contentEl.createDiv({ cls: 'image-preview-section' })
+		if (!canPreview) previewSection.style.display = 'none'
 		// Display only: never change the canvas or JPEG encoder's image pixels.
 		previewSection.style.opacity = String(this.settings.previewOpacity / 100)
 		if (this.settings.previewOpacity === 0) previewSection.style.visibility = 'hidden'
@@ -556,7 +564,7 @@ class ImageRenameModal extends Modal {
 		const previewViewport = previewPane.createDiv({ cls: 'image-preview-viewport' })
 		const previewStage = previewViewport.createDiv({ cls: 'image-preview-stage' })
 		const previewImage = previewStage.createEl('img', {
-			attr: { src: this.app.vault.getResourcePath(this.src), draggable: 'false' },
+			attr: { draggable: 'false' },
 		})
 		const zoomFrame = previewStage.createDiv({ cls: 'image-zoom-frame' })
 		const horizontalPanRow = previewPane.createEl('label', { cls: 'image-pan-control', text: 'Horizontal position' })
@@ -609,6 +617,7 @@ class ImageRenameModal extends Modal {
 			zoomImage.style.top = (zoomWindow.clientHeight / 2 - (top + frameHeight / 2) * zoom) + 'px'
 		}
 		const layoutPreview = () => {
+			if (!canPreview) return
 			const currentKey = viewportKey()
 			if (currentKey !== screenSizeKey) {
 				screenSizeKey = currentKey
@@ -656,9 +665,11 @@ class ImageRenameModal extends Modal {
 			zoomCenterY = (previewViewport.scrollTop + Math.min(previewStage.clientHeight, previewViewport.clientHeight) / 2) / previewStage.clientHeight
 			updateZoomPreview()
 		})
-		this.previewObserver = new ResizeObserver(layoutPreview)
-		this.previewObserver.observe(previewPane)
-		this.previewObserver.observe(this.modalEl)
+		if (canPreview) {
+			this.previewObserver = new ResizeObserver(layoutPreview)
+			this.previewObserver.observe(previewPane)
+			this.previewObserver.observe(this.modalEl)
+		}
 		const applyPreviewHeight = () => {
 			previewHeight = clampPreviewHeight(previewHeight)
 			layoutPreview()
@@ -722,8 +733,6 @@ class ImageRenameModal extends Modal {
 		})
 
 		let stem = this.stem
-		const ext = this.src.extension
-		const canEncode = ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(ext.toLowerCase())
 		type OutputFormat = 'original' | 'jpeg'
 		let outputFormat: OutputFormat = canEncode
 			? this.settings.preserveTextByDefault || this.settings.defaultJpegConversion ? 'jpeg' : 'original'
@@ -805,15 +814,17 @@ class ImageRenameModal extends Modal {
 		const formatSize = (bytes: number) => bytes >= 1024 * 1024
 			? `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 			: `${(bytes / 1024).toFixed(2)} KB`
-		const showOriginalInfo = () => originalInfo.setText(`${sourceWidth ? `${sourceWidth} × ${sourceHeight} px` : 'Loading resolution…'} · ${formatSize(this.src.stat.size)}`)
+		const showOriginalInfo = () => originalInfo.setText(canPreview
+			? `${sourceWidth ? `${sourceWidth} × ${sourceHeight} px` : 'Loading resolution…'} · ${formatSize(this.src.stat.size)}`
+			: `File size: ${formatSize(this.src.stat.size)}`)
 		showOriginalInfo()
 		previewImage.addEventListener('load', () => {
-			if (outputFormat !== 'original') return
+			if (!canPreview || outputFormat !== 'original') return
 			setSourceDimensions(previewImage.naturalWidth, previewImage.naturalHeight)
 			showOriginalInfo()
 		})
 		previewImage.addEventListener('error', () => {
-			if (outputFormat === 'original') originalInfo.setText(`Resolution unavailable · ${formatSize(this.src.stat.size)}`)
+			if (canPreview && outputFormat === 'original') originalInfo.setText(`Resolution unavailable · ${formatSize(this.src.stat.size)}`)
 		})
 		const showSizes = (originalBytes: number, outputBytes: number) => {
 			originalSizeEl.setText(formatSize(originalBytes))
@@ -851,7 +862,7 @@ class ImageRenameModal extends Modal {
 				processed = undefined
 				if (this.previewUrl) URL.revokeObjectURL(this.previewUrl)
 				this.previewUrl = undefined
-				previewImage.src = this.app.vault.getResourcePath(this.src)
+				if (canPreview) previewImage.src = this.app.vault.getResourcePath(this.src)
 				showOriginalInfo()
 				previewInfo.setText('Original image; no image data will be changed.')
 				showSizes(this.src.stat.size, this.src.stat.size)
@@ -974,17 +985,21 @@ class ImageRenameModal extends Modal {
 			}
 		}
 
-		if (canEncode) {
-			new Setting(contentEl).setName('Output format').setDesc('Keep the original file or convert to JPEG.').addDropdown(dropdown => dropdown
+		new Setting(contentEl).setName('Output format').setDesc(canEncode ? 'Keep the original file or convert to JPEG.' : 'This file type supports renaming only; file contents stay unchanged.').addDropdown(dropdown => {
+			dropdown
 				.addOption('original', 'Original (rename only)')
-				.addOption('jpeg', 'JPEG')
+			if (canEncode) dropdown.addOption('jpeg', 'JPEG')
+			dropdown
 				.setValue(outputFormat)
+				.setDisabled(!canEncode)
 				.onChange(value => {
 					outputFormat = value as OutputFormat
 					infoET.children[1].children[1].el.innerText = getNewPath(stem)
 					updateFormatVisibility()
 					schedulePreview()
-				}))
+				})
+		})
+		if (canEncode) {
 			const imageSettingsEl = contentEl.createDiv({ cls: 'image-processing-settings' })
 			processingSettingsEl = imageSettingsEl
 			let setQualityValue = (_value: number) => { /* assigned by the quality slider below */ }
@@ -1031,7 +1046,7 @@ class ImageRenameModal extends Modal {
 
 		const nameSetting = new Setting(contentEl)
 			.setName('New name')
-			.setDesc('Please input the new name for the image (without extension)')
+			.setDesc('Please input the new name for the attachment (without extension)')
 			.addText(text => text
 				.setValue(stem)
 				.onChange(async (value) => {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.24 — 2026-11-12
+
+- Hide image preview, zoom, position, and resize controls for PDFs, audio, video, and other non-image attachments. Show a rename-only attachment dialog with file size and the Original option.
+- Match image preview detection to Obsidian’s supported formats, including AVIF and WebP; keep JPEG conversion limited to supported raster inputs.
+
 ## 0.1.23 — 2026-11-12
 
 - Remove the duplicate selected-width number added by recent Obsidian versions. Keep one live selected width on the left and the fixed original maximum on the right.
