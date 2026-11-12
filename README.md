@@ -4,6 +4,8 @@ An Obsidian fork of [Paste image rename](https://github.com/reorx/obsidian-paste
 
 ## What this fork adds
 
+- **Direct attachment picker on Android:** Enable **Open Files directly on Android** in plugin settings to skip the Camera/Files menu in Obsidian’s existing **Insert attachment** command (command palette or mobile toolbar). Off by default; Windows and other platforms keep their normal behavior. The system file picker and Obsidian’s normal attachment import and renaming flow are retained. This uses a guarded adapter for Obsidian’s internal Android menu; if a future update changes the menu, it falls back to showing the normal menu.
+
 - **JPEG conversion:** Keep the original image or convert supported JPG, PNG, WebP, and BMP images to JPEG. Selecting Original (rename only) shows the original resolution and file size while hiding JPEG processing controls and processing details. GIF and SVG files remain rename-only.
 - **Maximum width:** Use the pixel slider, starting at the original width on the right, and slide left toward 0 to shrink. The left number shows the selected width; the right number stays fixed at the original maximum width; 0 uses a 1-pixel minimum so the output remains a valid image. Height follows the original aspect ratio, with a 1-pixel minimum. Images are never enlarged. Large reductions are resized in stages from the decoded original before JPEG compression; the preview warns when a small width may make text hard to read.
 - **Quality control:** Adjust JPEG quality before saving. Standard JPEG encoding uses progressive encoding, optimized coding, and 4:2:0 color sampling, with a default quality of 85 for new installations.

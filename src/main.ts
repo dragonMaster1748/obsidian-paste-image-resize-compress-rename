@@ -24,6 +24,7 @@ import {
 } from 'obsidian';
 
 import { ImageBatchRenameModal } from './batch';
+import { installDirectAttachmentPicker } from './attachment-picker';
 import { encodeJpeg } from './jpeg';
 import { renderTemplate } from './template';
 import {
@@ -45,6 +46,7 @@ interface PluginSettings {
 	dupNumberAlways: boolean
 	autoRename: boolean
 	handleAllAttachments: boolean
+	directAttachmentFiles: boolean
 	excludeExtensionPattern: string
 	disableRenameNotice: boolean
 	defaultJpegConversion: boolean
@@ -63,6 +65,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
 	dupNumberAlways: false,
 	autoRename: false,
 	handleAllAttachments: false,
+	directAttachmentFiles: false,
 	excludeExtensionPattern: '',
 	disableRenameNotice: false,
 	defaultJpegConversion: false,
@@ -101,6 +104,9 @@ export default class PasteImageRenamePlugin extends Plugin {
 		const pkg = require('../package.json')
 		console.log(`Plugin loading: ${pkg.name} ${pkg.version} BUILD_ENV=${process.env.BUILD_ENV}`)
 		await this.loadSettings();
+		if (Platform.isAndroidApp) {
+			this.register(installDirectAttachmentPicker(this.app, () => this.settings.directAttachmentFiles))
+		}
 
 		this.registerEvent(
 			this.app.vault.on('create', (file) => {
@@ -1107,6 +1113,14 @@ class SettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 		new Setting(containerEl).setName('Installed plugin version').setDesc(this.plugin.manifest.version)
+		containerEl.createEl('h2', { text: 'Attachment import' })
+		new Setting(containerEl)
+			.setName('Open Files directly on Android')
+			.setDesc('Skip the Camera/Files menu when using Insert attachment and open the system file picker directly. Off by default. Applies only to Android.')
+			.addToggle(toggle => toggle.setValue(this.plugin.settings.directAttachmentFiles).onChange(async value => {
+				this.plugin.settings.directAttachmentFiles = value
+				await this.plugin.saveSettings()
+			}))
 		containerEl.createEl('h2', { text: 'Image processing defaults' })
 
 		new Setting(containerEl)

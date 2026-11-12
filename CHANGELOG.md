@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.22 — 2026-11-12
+
+- Add a default-off Open Files directly on Android setting to skip the Camera/Files choice in Insert attachment while retaining Obsidian’s native Files import action. Other platforms are unaffected.
+
 ## 0.1.21 — 2026-11-12
 
 - Show the selected maximum width to the left of the slider and keep the original maximum width fixed on the right.
